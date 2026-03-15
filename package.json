@@ -1,0 +1,23 @@
+{
+  "name": "x-post-analyzer",
+  "version": "1.0.0",
+  "description": "Analyze your X/Twitter posts against the open-source Twitter algorithm to maximize engagement (views, likes, and replies)",
+  "main": "src/index.js",
+  "bin": {
+    "x-analyze": "./src/cli.js"
+  },
+  "scripts": {
+    "analyze": "node src/cli.js",
+    "test": "node test/run.js"
+  },
+  "keywords": [
+    "twitter",
+    "x",
+    "algorithm",
+    "engagement",
+    "analytics",
+    "social-media"
+  ],
+  "license": "MIT",
+  "type": "module"
+}
