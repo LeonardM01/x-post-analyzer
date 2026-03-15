@@ -174,6 +174,14 @@ function main() {
     console.log(`  ${analysis.summary}`);
     console.log(`  Reply Potential: ${analysis.analysis.reply_strategy.reply_score}/100`);
 
+    const slopScore = analysis.analysis.slop.slop_score;
+    const slopLabel = slopScore === 0 ? 'Clean' : slopScore < 25 ? 'Minor signals' : slopScore < 50 ? 'Moderate' : 'HIGH - rewrite needed';
+    console.log(`  AI Slop Score: ${slopScore}/100 (${slopLabel})`);
+    if (analysis.analysis.slop.slop_words_found.length > 0) {
+      const flagged = analysis.analysis.slop.slop_words_found.slice(0, 5).map((w) => `"${w.word}"`).join(', ');
+      console.log(`  AI-flagged words: ${flagged}`);
+    }
+
     if (analysis.issues.length > 0) {
       console.log(`\n  Issues (${analysis.issues.length}):`);
       analysis.issues.slice(0, 5).forEach((issue) => {

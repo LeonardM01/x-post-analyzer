@@ -90,51 +90,51 @@ ever deleted?"
 
 ## How It Works
 
-The tool runs **5 analyzers** on your tweet, each targeting a different part of the algorithm:
+The tool runs **6 analyzers** on your tweet, each targeting a different part of the algorithm:
 
 ```
  ┌─────────────────────────────────────────────────────────────────┐
  │                        Your Tweet Text                         │
  └──────────────────────────┬──────────────────────────────────────┘
                             │
-          ┌─────────────────┼─────────────────┐
-          │                 │                 │
-          ▼                 ▼                 ▼
-   ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-   │    Text      │ │   Reply      │ │   Media      │
-   │  Analyzer    │ │  Strategy    │ │  Analyzer    │
-   │              │ │  Analyzer    │ │              │
-   │ • Length     │ │              │ │ • Image 2x   │
-   │ • Hashtags   │ │ • 20+ hooks  │ │ • Video 2.5x │
-   │ • URLs       │ │ • 9+ debate  │ │ • Poll 1.8x  │
-   │ • Caps/spam  │ │   triggers   │ │ • None 0.7x  │
-   │ • Emojis     │ │ • CTAs       │ │              │
-   └──────┬───────┘ └──────┬───────┘ └──────┬───────┘
-          │                │                 │
-          ▼                ▼                 ▼
-   ┌──────────────┐ ┌──────────────┐        │
-   │  Engagement  │ │   Timing     │        │
-   │  Predictor   │ │  Analyzer    │        │
-   │              │ │              │        │
-   │ • Score per  │ │ • Peak hours │        │
-   │   engagement │ │ • Weekday vs │        │
-   │   type       │ │   weekend    │        │
-   │ • Algorithm  │ │              │        │
-   │   formula    │ │              │        │
-   └──────┬───────┘ └──────┬───────┘        │
-          │                │                 │
-          └────────────────┼─────────────────┘
-                           │
-                           ▼
-                 ┌───────────────────┐
-                 │  Combined Score   │
-                 │  0-100 (A-F)     │
-                 │                   │
-                 │  + Issues list    │
-                 │  + Strengths      │
-                 │  + Action steps   │
-                 │  + Full .md report│
-                 └───────────────────┘
+       ┌────────────────────┼────────────────────┐
+       │                    │                    │
+       ▼                    ▼                    ▼
+┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+│    Text      │  │   Reply      │  │   AI Slop    │
+│  Analyzer    │  │  Strategy    │  │  Detector    │
+│              │  │  Analyzer    │  │              │
+│ • Length     │  │              │  │ • Slop words │
+│ • Hashtags   │  │ • 20+ hooks  │  │ • AI phrases │
+│ • URLs       │  │ • 9+ debate  │  │ • Trigrams   │
+│ • Caps/spam  │  │   triggers   │  │ • Structure  │
+│ • Emojis     │  │ • CTAs       │  │ • Burstiness │
+└──────┬───────┘  └──────┬───────┘  └──────┬───────┘
+       │                 │                 │
+       ▼                 ▼                 ▼
+┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+│   Media      │  │  Engagement  │  │   Timing     │
+│  Analyzer    │  │  Predictor   │  │  Analyzer    │
+│              │  │              │  │              │
+│ • Image 2x   │  │ • Score per  │  │ • Peak hours │
+│ • Video 2.5x │  │   engagement │  │ • Weekday vs │
+│ • Poll 1.8x  │  │   type       │  │   weekend    │
+│ • None 0.7x  │  │ • Algorithm  │  │              │
+│              │  │   formula    │  │              │
+└──────┬───────┘  └──────┬───────┘  └──────┬───────┘
+       │                 │                 │
+       └─────────────────┼─────────────────┘
+                         │
+                         ▼
+               ┌───────────────────┐
+               │  Combined Score   │
+               │  0-100 (A-F)     │
+               │                   │
+               │  + Issues list    │
+               │  + Strengths      │
+               │  + Action steps   │
+               │  + Full .md report│
+               └───────────────────┘
 ```
 
 ### 1. Text Quality Analyzer
@@ -167,9 +167,39 @@ And 9+ debate triggers that provoke discussion:
 - Authority framing (`Most people don't...`, `Here's the thing...`)
 - Directive statements (`Stop doing X`, `Nobody talks about X`)
 
-### 3. Media Impact Analyzer
+### 3. AI Slop Detector
+
+The algorithm has dedicated slop signals (`SlopAuthorFeature`, `SlopAuthorScoreFeature`, `GrokSlopScoreFeature`, `SlopFilter`) that identify and suppress AI-generated low-quality content. Users also instinctively disengage from robotic text, triggering negative feedback weights (-74 to -369).
+
+Detection is based on the [Antislop paper](https://arxiv.org/abs/2510.15061) (ICLR 2026) and [EQ-Bench Slop Score](https://eqbench.com/slop-score.html) methodology:
+
+| Component | Weight | What it checks |
+|-----------|--------|----------------|
+| Slop Words | 60% | Words statistically overrepresented in AI output ("delve" saw ~1000% increase post-ChatGPT) |
+| Slop Phrases | 25% | AI-typical patterns ("In today's fast-paced world", "Not just X, but Y", "I'd be happy to help") |
+| Slop Trigrams | 15% | 3-word sequences overrepresented in AI text ("a testament to", "a tapestry of") |
+| Structural | bonus | Sentence uniformity (low burstiness), adverb stacking, semicolons, formatting bleed |
+
+**Red-flag words** (highest overrepresentation in AI vs. human text):
+
+`delve` · `tapestry` · `multifaceted` · `commendable` · `meticulous` · `intricate` · `pivotal` · `nuanced` · `comprehensive` · `testament` · `paradigm` · `robust` · `unprecedented` · `leverage` · `revolutionize` · `groundbreaking` · `transformative` · `holistic` · `synergy`
+
+**Red-flag phrases:**
+
+- "In today's fast-paced/ever-evolving world..." (instant AI tell)
+- "It's important to note..." / "It's worth noting..."
+- "Not just X, but Y" (25% of EQ-Bench slop score alone)
+- "Great question!" / "I'd be happy to help!" (chatbot bleed)
+- "A testament to" / "A tapestry of" (AI superlatives)
+- "Let's delve into" / "In the realm of"
+- "In summary" / "In conclusion" / "In essence"
+
+**Why it matters:** The X algorithm tracks `SlopAuthorScore` at the account level. Repeatedly posting AI-sounding content can flag your entire account, reducing reach on ALL your tweets — not just the flagged ones.
+
+### 4. Media Impact Analyzer
 
 The algorithm treats media types differently:
+
 
 | Media | Boost | Notes |
 |-------|-------|-------|
@@ -179,7 +209,7 @@ The algorithm treats media types differently:
 | GIF | ~1.5x | Visual appeal without video commitment |
 | None | 0.7x | Text-only gets ~30% less distribution |
 
-### 4. Engagement Predictor
+### 5. Engagement Predictor
 
 Uses the actual Heavy Ranker formula from `the-algorithm-ml`:
 
@@ -189,7 +219,7 @@ score = Σ (weight_i × P(engagement_i))
 
 Predicts probability for each of the 15 engagement types the model scores, then calculates weighted contribution to show you exactly where your tweet's score comes from.
 
-### 5. Timing Analyzer
+### 6. Timing Analyzer
 
 The algorithm weights recency heavily. The first 30–60 minutes of engagement determine reach.
 
@@ -260,6 +290,7 @@ Every analysis generates a detailed markdown file with these sections:
 | **Tweet Analyzed** | Your tweet text for reference |
 | **Score Breakdown** | Per-category scores (text, media, reply, engagement) |
 | **Algorithm Weight Reference** | The actual weights from Twitter's code |
+| **AI Slop Detection** | Slop score, flagged words/phrases, structural tells |
 | **Issues Found** | What's hurting your reach, sorted by severity |
 | **Strengths** | What you're doing right |
 | **Action Steps to Improve** | Exactly what to change, ordered by impact |
@@ -319,10 +350,7 @@ const report = generateComparisonReport(comparison);
 ### Use Individual Analyzers
 
 ```javascript
-import { analyzeText } from './src/index.js';
-import { analyzeReplyStrategy } from './src/index.js';
-import { analyzeMedia } from './src/index.js';
-import { predictEngagement } from './src/index.js';
+import { analyzeText, analyzeReplyStrategy, analyzeMedia, detectSlop } from './src/index.js';
 
 // Just check text quality
 const text = analyzeText('Your tweet here');
@@ -335,6 +363,13 @@ console.log(reply.reply_score, reply.hooks_found);
 // Just check media impact
 const media = analyzeMedia({ hasVideo: true });
 console.log(media.boost_factor); // 2.5
+
+// Just check for AI slop
+const slop = detectSlop('Let me delve into this comprehensive framework...');
+console.log(slop.slop_score);         // 0-100
+console.log(slop.is_likely_ai);       // true/false
+console.log(slop.slop_words_found);   // [{ word: 'delve', severity: 'critical' }, ...]
+console.log(slop.slop_phrases_found); // [{ name: '...', severity: '...' }, ...]
 ```
 
 ---
@@ -460,11 +495,12 @@ x-post-analyzer/
 │   │   ├── reply-strategy-analyzer.js  # Reply hooks & debate triggers
 │   │   ├── engagement-predictor.js     # Weighted engagement scoring
 │   │   ├── media-analyzer.js           # Media type impact
-│   │   └── timing-analyzer.js          # Posting time optimization
+│   │   ├── timing-analyzer.js          # Posting time optimization
+│   │   └── slop-detector.js            # AI slop detection (EQ-Bench methodology)
 │   └── report/
 │       └── markdown-report.js          # Markdown report generator
 ├── test/
-│   └── run.js                          # Test suite (28 tests)
+│   └── run.js                          # Test suite (44 tests)
 ├── examples/
 │   ├── analyze-example.js              # Single tweet example
 │   └── compare-example.js             # Comparison example
@@ -488,6 +524,9 @@ x-post-analyzer/
 - Use formats like "Agree or disagree:", "Rank these:", "What's your take?"
 
 **Don't do this:**
+- Post AI-generated text without heavy editing (triggers SlopFilter + negative feedback)
+- Use words like "delve", "tapestry", "multifaceted", "robust", "leverage" (AI red flags)
+- Start with "In today's fast-paced world" or "It's important to note" (instant AI tell)
 - Post external links in the main tweet (put them in replies)
 - Use 3+ hashtags (spam signal)
 - Use 3+ @mentions (spam signal)
@@ -511,3 +550,5 @@ MIT
 
 - [twitter/the-algorithm](https://github.com/twitter/the-algorithm) — Core recommendation algorithm (Scala/Java)
 - [twitter/the-algorithm-ml](https://github.com/twitter/the-algorithm-ml) — Heavy Ranker ML model and weights
+- [sam-paech/antislop-sampler](https://github.com/sam-paech/antislop-sampler) — Antislop framework (ICLR 2026)
+- [EQ-Bench Slop Score](https://eqbench.com/slop-score.html) — Slop detection methodology

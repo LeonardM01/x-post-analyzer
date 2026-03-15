@@ -46,6 +46,7 @@ export function generateReport(analysis) {
   lines.push(`| Text Quality | ${analysis.analysis.text.score}/100 | Length, readability, spam signals |`);
   lines.push(`| Media | ${analysis.analysis.media.has_media ? 'Yes' : 'None'} (${analysis.analysis.media.boost_factor}x) | ${analysis.analysis.media.has_video ? 'Video' : analysis.analysis.media.has_image ? 'Image' : analysis.analysis.media.has_poll ? 'Poll' : 'No media'} |`);
   lines.push(`| Reply Potential | ${analysis.analysis.reply_strategy.reply_score}/100 | Hooks, debate triggers, CTAs |`);
+  lines.push(`| AI Slop Score | ${analysis.analysis.slop.slop_score}/100 | ${analysis.analysis.slop.slop_score === 0 ? 'Clean — no AI patterns' : analysis.analysis.slop.slop_score < 25 ? 'Minor AI signals' : analysis.analysis.slop.slop_score < 50 ? 'Moderate AI patterns' : 'High AI slop — rewrite needed'} |`);
   lines.push(`| Engagement Prediction | Grade ${analysis.analysis.engagement_prediction.score_grade.grade} | ${analysis.analysis.engagement_prediction.score_grade.description} |`);
   lines.push('');
 
@@ -148,6 +149,88 @@ export function generateReport(analysis) {
   lines.push('> Always reply to your commenters - this is the #1 growth hack.');
   lines.push('');
 
+  // AI Slop Analysis
+  const slop = analysis.analysis.slop;
+  lines.push('---');
+  lines.push('');
+  lines.push('## AI Slop Detection');
+  lines.push('');
+  lines.push(`**Slop Score: ${slop.slop_score}/100** (0 = human, 100 = pure AI slop)`);
+  lines.push('');
+
+  if (slop.is_likely_ai) {
+    lines.push(`> **WARNING:** This tweet ${slop.confidence === 'high' ? 'strongly reads' : 'appears to read'} as AI-generated content (confidence: ${slop.confidence}).`);
+    lines.push('> The X algorithm tracks `SlopAuthorScore` — repeated AI content can flag your entire account.');
+    lines.push('');
+  } else if (slop.slop_score === 0) {
+    lines.push('> Reads as authentic human writing. No AI patterns detected.');
+    lines.push('');
+  }
+
+  // Score breakdown
+  lines.push('| Component | Score | Weight | Description |');
+  lines.push('|-----------|-------|--------|-------------|');
+  lines.push(`| Slop Words | ${slop.breakdown.word_score}/100 | 60% | Words overrepresented in AI output |`);
+  lines.push(`| Slop Phrases | ${slop.breakdown.phrase_score}/100 | 25% | AI-typical phrase patterns |`);
+  lines.push(`| Slop Trigrams | ${slop.breakdown.trigram_score}/100 | 15% | 3-word sequences flagged as AI |`);
+  lines.push(`| Structural | ${slop.breakdown.structural_score}/100 | bonus | Formatting, burstiness, tone |`);
+  lines.push('');
+
+  if (slop.slop_words_found.length > 0) {
+    lines.push('### AI-Flagged Words Found');
+    lines.push('');
+    lines.push('These words appear at dramatically higher frequency in AI text vs. human text:');
+    lines.push('');
+    for (const w of slop.slop_words_found) {
+      const icon = w.severity === 'critical' ? '!!!' : w.severity === 'high' ? '!!' : '!';
+      lines.push(`- **${icon}** \`${w.word}\` (${w.severity})`);
+    }
+    lines.push('');
+  }
+
+  if (slop.slop_phrases_found.length > 0) {
+    lines.push('### AI Phrase Patterns Found');
+    lines.push('');
+    for (const p of slop.slop_phrases_found) {
+      lines.push(`- **[${p.severity.toUpperCase()}]** ${p.name}`);
+    }
+    lines.push('');
+  }
+
+  if (slop.slop_trigrams_found.length > 0) {
+    lines.push('### AI Trigrams Found');
+    lines.push('');
+    for (const t of slop.slop_trigrams_found) {
+      lines.push(`- \`${t}\``);
+    }
+    lines.push('');
+  }
+
+  if (slop.structural_flags.length > 0) {
+    lines.push('### Structural AI Signals');
+    lines.push('');
+    for (const f of slop.structural_flags) {
+      lines.push(`- ${f}`);
+    }
+    lines.push('');
+  }
+
+  lines.push('### Why This Matters');
+  lines.push('');
+  lines.push('```');
+  lines.push('X Algorithm slop signals (from HomeFeatures.scala):');
+  lines.push('  SlopAuthorFeature       — flags authors who post AI content');
+  lines.push('  SlopAuthorScoreFeature  — numeric slop score per author');
+  lines.push('  GrokSlopScoreFeature    — per-tweet Grok AI quality score');
+  lines.push('  SlopFilter              — filters low-quality AI content');
+  lines.push('');
+  lines.push('Users react to AI slop with:');
+  lines.push('  "Not interested" click  — weight: -74.0');
+  lines.push('  Block / Mute            — tweet removed entirely');
+  lines.push('  Report                  — weight: -369.0');
+  lines.push('```');
+  lines.push('');
+
   // Engagement Prediction Breakdown
   const ep = analysis.analysis.engagement_prediction;
   lines.push('---');
@@ -203,6 +286,7 @@ export function generateReport(analysis) {
   lines.push('');
   lines.push(checkItem(rs.reply_score > 30, 'Has reply triggers (questions, CTAs, opinions)'));
   lines.push(checkItem(!analysis.issues.some((i) => i.severity === 'critical'), 'No critical issues'));
+  lines.push(checkItem(analysis.analysis.slop.slop_score < 15, 'Not flagged as AI slop'));
   lines.push(checkItem(analysis.analysis.media.has_media, 'Has media (image/video/poll)'));
   lines.push(checkItem((m.url_count || 0) === 0, 'No external links in main tweet'));
   lines.push(checkItem((m.hashtag_count || 0) <= 2, '2 or fewer hashtags'));
@@ -228,13 +312,13 @@ export function generateComparisonReport(comparison) {
   lines.push('');
   lines.push('## Ranking');
   lines.push('');
-  lines.push('| Rank | Tweet # | Score | Grade | Reply Score |');
-  lines.push('|------|---------|-------|-------|-------------|');
+  lines.push('| Rank | Tweet # | Score | Grade | Reply Score | Slop Score |');
+  lines.push('|------|---------|-------|-------|-------------|------------|');
 
   for (let i = 0; i < comparison.ranked_tweets.length; i++) {
     const t = comparison.ranked_tweets[i];
     const medal = i === 0 ? ' (Best)' : '';
-    lines.push(`| ${i + 1}${medal} | #${t.index} | ${t.overall_score}/100 | ${t.overall_grade} | ${t.analysis.reply_strategy.reply_score}/100 |`);
+    lines.push(`| ${i + 1}${medal} | #${t.index} | ${t.overall_score}/100 | ${t.overall_grade} | ${t.analysis.reply_strategy.reply_score}/100 | ${t.analysis.slop.slop_score}/100 |`);
   }
 
   lines.push('');

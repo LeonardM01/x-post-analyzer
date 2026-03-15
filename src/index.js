@@ -13,3 +13,4 @@ export { analyzeMedia } from './analyzers/media-analyzer.js';
 export { analyzeTiming } from './analyzers/timing-analyzer.js';
 export { predictEngagement } from './analyzers/engagement-predictor.js';
 export { analyzeReplyStrategy } from './analyzers/reply-strategy-analyzer.js';
+export { detectSlop, SLOP_REPLACEMENTS } from './analyzers/slop-detector.js';

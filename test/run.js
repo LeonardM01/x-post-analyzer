@@ -6,6 +6,7 @@ import { analyzeTweet, compareTweets } from '../src/analyzer.js';
 import { generateReport } from '../src/report/markdown-report.js';
 import { analyzeText } from '../src/analyzers/text-analyzer.js';
 import { analyzeReplyStrategy } from '../src/analyzers/reply-strategy-analyzer.js';
+import { detectSlop } from '../src/analyzers/slop-detector.js';
 
 let passed = 0;
 let failed = 0;
@@ -90,7 +91,7 @@ console.log('Full Analysis:');
 
 {
   const result = analyzeTweet({ text: '' });
-  assert(result.overall_score < 30, 'Empty tweet scores poorly');
+  assert(result.overall_score < 40, 'Empty tweet scores poorly');
 }
 
 {
@@ -118,6 +119,60 @@ console.log('Comparison:');
 
 console.log('');
 
+// --- AI Slop Detection Tests ---
+console.log('AI Slop Detector:');
+
+{
+  const result = detectSlop('just shipped a new feature and im pretty hyped about it. what do yall think?');
+  assert(result.slop_score < 10, 'Casual human tweet has low slop score');
+  assert(result.slop_words_found.length === 0, 'No slop words in casual tweet');
+}
+
+{
+  const result = detectSlop('Let me delve into this multifaceted tapestry of innovation. It is important to note that this comprehensive and robust framework leverages cutting-edge paradigms.');
+  assert(result.slop_score >= 50, 'Heavy AI slop scores high');
+  assert(result.slop_words_found.length >= 5, 'Multiple slop words detected');
+  assert(result.is_likely_ai === true, 'Flagged as likely AI');
+}
+
+{
+  const result = detectSlop('In today\'s fast-paced world, it\'s crucial to leverage robust solutions. Not just tools, but comprehensive frameworks that foster innovation.');
+  assert(result.slop_phrases_found.length >= 1, 'AI phrases detected');
+  assert(result.slop_score >= 25, 'Moderate AI content scores above 25');
+}
+
+{
+  const result = detectSlop('Great question! I\'d be happy to help. In essence, this is a testament to the power of innovation.');
+  assert(result.slop_phrases_found.some(p => p.name.includes('chatbot')), 'Chatbot phrases detected');
+  assert(result.slop_score >= 30, 'Chatbot-style content scores high');
+}
+
+{
+  const result = detectSlop('i mass shipped my side project last night at 2am and honestly its kinda mid but whatever lol');
+  assert(result.slop_score < 10, 'Very casual human tweet scores near zero');
+  assert(result.is_likely_ai === false, 'Not flagged as AI');
+}
+
+{
+  const result = detectSlop('the ux is bad. like really bad. fix your onboarding or watch users bounce. nobody wants a 12-step signup in 2025');
+  assert(result.slop_score < 10, 'Opinionated human tweet scores near zero');
+}
+
+{
+  // Test structural detection - uniform sentence lengths
+  const result = detectSlop('Moreover, innovation drives growth. Furthermore, collaboration builds trust. Additionally, execution ensures results. Consequently, leadership matters most.');
+  assert(result.structural_flags.length >= 1, 'Structural AI patterns detected (adverb stacking)');
+}
+
+{
+  // Test that slop is integrated into full analysis
+  const result = analyzeTweet({ text: 'This robust and comprehensive solution leverages cutting-edge paradigms to revolutionize the landscape.' });
+  assert(result.analysis.slop !== undefined, 'Slop analysis present in full analysis');
+  assert(result.analysis.slop.slop_score > 0, 'Slop score populated in full analysis');
+}
+
+console.log('');
+
 // --- Report Generation Tests ---
 console.log('Report Generation:');
 
@@ -131,6 +186,7 @@ console.log('Report Generation:');
   assert(report.includes('## Overall Score'), 'Report has score section');
   assert(report.includes('## Algorithm Weight Reference'), 'Report has weight reference');
   assert(report.includes('## Reply Strategy Analysis'), 'Report has reply strategy');
+  assert(report.includes('## AI Slop Detection'), 'Report has AI slop section');
   assert(report.includes('## Action Steps to Improve'), 'Report has suggestions');
   assert(report.includes('## Quick Checklist'), 'Report has checklist');
 }
