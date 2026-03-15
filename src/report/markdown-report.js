@@ -217,12 +217,21 @@ export function generateReport(analysis) {
 
   lines.push('### Why This Matters');
   lines.push('');
+  lines.push('The algorithm has a **two-tier slop detection system**:');
+  lines.push('');
   lines.push('```');
-  lines.push('X Algorithm slop signals (from HomeFeatures.scala):');
-  lines.push('  SlopAuthorFeature       — flags authors who post AI content');
-  lines.push('  SlopAuthorScoreFeature  — numeric slop score per author');
-  lines.push('  GrokSlopScoreFeature    — per-tweet Grok AI quality score');
-  lines.push('  SlopFilter              — filters low-quality AI content');
+  lines.push('TIER 1 — Author-Level (SlopAuthorFeatureHydrator.scala)');
+  lines.push('  SlopAuthorFeature       — flags authors with score > 0.3');
+  lines.push('  SlopAuthorScoreFeature  — numeric score from abuse detection system');
+  lines.push('  SlopFilter              — removes OON tweets from flagged authors');
+  lines.push('  SlopMinFollowers = 100  — only filters accounts with 100+ followers');
+  lines.push('  → Flags your ENTIRE ACCOUNT, not just one tweet');
+  lines.push('');
+  lines.push('TIER 2 — Content-Level (GrokSlopScoreRescorer.scala)');
+  lines.push('  GrokSlopScore = 1       — Low slop (no penalty)');
+  lines.push('  GrokSlopScore = 2       — Medium slop (watched)');
+  lines.push('  GrokSlopScore = 3       — High slop (score decay applied)');
+  lines.push('  → Multiplies tweet score by decay factor (lower reach)');
   lines.push('');
   lines.push('Users react to AI slop with:');
   lines.push('  "Not interested" click  — weight: -74.0');

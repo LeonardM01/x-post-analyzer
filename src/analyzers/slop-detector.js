@@ -301,6 +301,39 @@ export function detectSlop(text) {
     findings.breakdown.structural_score += 15;
   }
 
+  // Participial phrase opening — instruction-tuned models use these at 2-5x the rate of humans
+  // e.g., "Leveraging cutting-edge technology, we..." / "Having analyzed the data, it's clear..."
+  const participialOpeners = sentences.filter((s) =>
+    /^\s*(leveraging|harnessing|utilizing|navigating|embracing|fostering|showcasing|highlighting|emphasizing|having \w+ed|building on|drawing from)/i.test(s.trim())
+  );
+  if (participialOpeners.length >= 1) {
+    findings.structural_flags.push('Participial phrase opener — AI uses these at 2-5x human rate');
+    findings.breakdown.structural_score += 8;
+  }
+
+  // "From X to Y" construction — e.g., "From bustling cities to serene landscapes"
+  if (/from \w[\w\s]+ to \w[\w\s]+/i.test(cleanText) && /from/.test(lowerText)) {
+    const fromToMatches = cleanText.match(/from [\w\s]+ to [\w\s]+/gi) || [];
+    if (fromToMatches.length >= 1 && fromToMatches.some((m) => m.split(/\s+/).length >= 5)) {
+      findings.structural_flags.push('"From X to Y" construction — common AI enumeration pattern');
+      findings.breakdown.structural_score += 5;
+    }
+  }
+
+  // Hidden Unicode characters (zero-width spaces, smart quotes from copy-paste)
+  const hiddenChars = cleanText.match(/[\u200B\u200C\u200D\uFEFF]/g) || [];
+  if (hiddenChars.length > 0) {
+    findings.structural_flags.push(`Hidden Unicode characters detected (${hiddenChars.length}) — possible copy-paste from AI tool`);
+    findings.breakdown.structural_score += 10;
+  }
+
+  // Excessive positivity without substance — AI defaults to agreeableness
+  const positiveSuperlatives = (cleanText.match(/\b(amazing|incredible|remarkable|extraordinary|fantastic|wonderful|brilliant|magnificent|outstanding|exceptional)\b/gi) || []).length;
+  if (positiveSuperlatives >= 3) {
+    findings.structural_flags.push(`${positiveSuperlatives} positive superlatives — AI defaults to excessive agreeableness`);
+    findings.breakdown.structural_score += 8;
+  }
+
   findings.breakdown.structural_score = Math.min(100, findings.breakdown.structural_score);
 
   // ── Calculate Final Slop Score ──

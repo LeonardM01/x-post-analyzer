@@ -107,8 +107,38 @@ export const CONTENT_QUALITY_FILTERS = {
   nsfw: 'GrokNsfwFilter',
   spam: 'GrokSpamFilter',
   violent: 'GrokViolentFilter',
-  slop: 'SlopFilter',                  // Low quality content
+  slop: 'SlopFilter',                  // Low quality AI content
   out_of_network_nsfw: 'OutOfNetworkNSFW',
+};
+
+// Two-tier AI Slop Detection System (from source code analysis)
+// Tier 1: Author-level (SlopAuthorFeatureHydrator.scala + SlopFilter.scala)
+// Tier 2: Content-level (GrokAnnotationsFeatureHydrator.scala + GrokSlopScoreRescorer.scala)
+export const SLOP_SYSTEM = {
+  // Tier 1: Author-level slop detection
+  author: {
+    max_score: 0.3,               // SlopMaxScore: authors above 0.3 flagged as slop (range 0.0-4.0)
+    min_followers: 100,           // SlopMinFollowers: only filters authors with 100+ followers
+    min_following_threshold: 5,   // Bypassed if user follows 5+ slop authors
+    // Targets: NearZero, New, VeryLight users + low-signal users
+    // Only filters OUT-OF-NETWORK tweets from flagged authors
+    source_file: 'SlopAuthorFeatureHydrator.scala',
+    // Uses NsfwConsumerFollowerScore from abuse detection system
+  },
+  // Tier 2: Content-level Grok slop scoring
+  content: {
+    tiers: {
+      1: 'Low slop',              // GrokSlopScore = 1
+      2: 'Medium slop',           // GrokSlopScore = 2
+      3: 'High slop — triggers decay', // GrokSlopScore = 3 (treatmentValue)
+    },
+    decay_value: 1.0,             // GrokSlopScoreDecayValueParam default (range 0.0-1.0)
+                                  // At 1.0 = no penalty; lower = stronger penalty
+    source_file: 'GrokSlopScoreRescorer.scala',
+  },
+  // Metrics buckets tracked (HomeTweetTypePredicates.scala)
+  author_score_buckets: ['is_slop_lte_0', 'is_slop_lte_0_2', 'is_slop_gt_0', 'is_slop_gt_0_2', 'is_slop_gt_0_4', 'is_slop_gt_0_6'],
+  content_score_buckets: ['is_grokslopscore_low_1', 'is_grokslopscore_med_2', 'is_grokslopscore_high_3'],
 };
 
 // Pipeline configuration: candidate sourcing limits
