@@ -1,13 +1,17 @@
-/**
- * Media Analyzer - Evaluates media attachments and their impact on algorithm scoring
- * Based on Twitter algorithm media handling signals
- */
-
 import { OPTIMAL_TWEET } from '../algorithm-weights.js';
 
-/**
- * Analyze media context provided with the tweet
- */
+const PHOTO_EXPAND_CUES = [
+  /see below/i,
+  /swipe/i,
+  /look closely/i,
+  /details in (image|photo|pic)/i,
+  /zoom in/i,
+  /tap (to|for)/i,
+  /full (image|chart|graph|breakdown) (below|here)/i,
+  /can you spot/i,
+  /what do you see/i,
+];
+
 export function analyzeMedia(options = {}) {
   const findings = {
     score: 0,
@@ -28,17 +32,28 @@ export function analyzeMedia(options = {}) {
     findings.boost_factor = OPTIMAL_TWEET.media.video_boost;
     findings.score = 25;
     findings.strengths.push(
-      `Video content gets ~${OPTIMAL_TWEET.media.video_boost}x engagement boost. The algorithm tracks 50% watch-through rate.`
+      `Video content gets ~${OPTIMAL_TWEET.media.video_boost}x engagement boost. The algorithm scores via vqv_score (video quality view), gated by MIN_VIDEO_DURATION_MS. video_watch_time is a continuous head that rewards retention throughout playback.`
     );
     findings.suggestions.push('Keep videos under 60 seconds for best completion rates.');
     findings.suggestions.push('Add captions - most users browse with sound off.');
-    findings.suggestions.push('Hook viewers in the first 3 seconds to boost watch-through.');
+    findings.suggestions.push('Hook viewers in the first 3 seconds to boost watch-through and vqv_score.');
   } else if (findings.has_image) {
     findings.boost_factor = OPTIMAL_TWEET.media.image_boost;
     findings.score = 20;
-    findings.strengths.push(
-      `Image content gets ~${OPTIMAL_TWEET.media.image_boost}x engagement boost over text-only tweets.`
-    );
+
+    const tweetText = options.tweetText || '';
+    const hasExpandCue = PHOTO_EXPAND_CUES.some((p) => p.test(tweetText));
+    if (hasExpandCue) {
+      findings.score += 2;
+      findings.strengths.push(
+        `Image content gets ~${OPTIMAL_TWEET.media.image_boost}x engagement boost. Text suggests tap-to-expand affordance — small positive bonus on photo_expand_score.`
+      );
+    } else {
+      findings.strengths.push(
+        `Image content gets ~${OPTIMAL_TWEET.media.image_boost}x engagement boost over text-only tweets.`
+      );
+      findings.suggestions.push('Add a tap-to-expand cue ("see below", "zoom in", "details in image") to boost photo_expand_score.');
+    }
     findings.suggestions.push('Use high-contrast, eye-catching images that stop the scroll.');
     findings.suggestions.push('Infographics and screenshots of text perform especially well.');
   } else if (findings.has_gif) {

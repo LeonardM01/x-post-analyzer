@@ -1,32 +1,6 @@
-/**
- * AI Slop Detector - Detects AI-generated content patterns that the algorithm penalizes
- *
- * The Twitter/X algorithm uses Grok-based content quality scoring and negative engagement
- * predictions (block, mute, report, "not interested") to suppress low-quality content.
- * AI-generated "slop" triggers these negative signals because users instinctively
- * disengage from robotic, generic content.
- *
- * Detection is based on:
- * 1. EQ-Bench Slop Score methodology (ICLR 2026 - Antislop paper by Sam Paech)
- *    - Slop words (60% weight): words that appear unnaturally often in LLM output
- *    - Not-X-But-Y patterns (25% weight): contrast structures overused by AI
- *    - Slop trigrams (15% weight): 3-word phrases overrepresented in AI text
- * 2. GPTZero-style signals: low perplexity (predictability), low burstiness
- * 3. Structural patterns unique to AI output
- * 4. X algorithm signals: SlopAuthorFeature, GrokSlopScore, SlopFilter
- *
- * Sources:
- *   - github.com/sam-paech/slop-score (EQ-Bench)
- *   - github.com/sam-paech/antislop-sampler
- *   - arxiv.org/abs/2510.15061 (Antislop, ICLR 2026)
- *   - twitter/the-algorithm: HomeFeatures.scala (SlopAuthorFeature, SlopAuthorScoreFeature)
- *   - twitter/the-algorithm: ScoredTweetsRecommendationPipelineConfig.scala (SlopFilter)
- */
-
-// ── Slop Words ──────────────────────────────────────────────────────────────
-// Words that appear at dramatically higher frequency in LLM output vs human text.
-// Ranked by severity. "delve" alone saw ~1000% increase in usage post-ChatGPT.
-// Source: EQ-Bench slop-score, GPTZero vocabulary analysis, Antislop paper
+// WHY: EQ-Bench / Antislop research (arxiv 2510.15061, ICLR 2026) shows slop patterns
+// correlate strongly with not_interested / block_author / mute_author — the exact negative
+// heads that suppress banger score in the 2026 Grox scoring pipeline.
 
 const SLOP_WORDS_CRITICAL = [
   'delve', 'tapestry', 'multifaceted', 'commendable', 'meticulous',
@@ -55,10 +29,6 @@ const SLOP_WORDS_MEDIUM = [
   'encompass', 'bolster', 'augment', 'facilitate', 'elucidate',
   'aligns', 'resonates', 'underscored', 'nuances',
 ];
-
-// ── Slop Phrases ────────────────────────────────────────────────────────────
-// Multi-word patterns that are heavily overrepresented in AI text.
-// The "Not-X-But-Y" pattern alone accounts for 25% of the EQ-Bench slop score.
 
 const SLOP_PHRASES = [
   // Opening patterns
@@ -103,9 +73,6 @@ const SLOP_PHRASES = [
   { pattern: /this is (huge|massive|a big deal)/i, name: 'Hype filler', severity: 'low' },
 ];
 
-// ── Slop Trigrams ───────────────────────────────────────────────────────────
-// 3-word sequences overrepresented in AI output (15% of EQ-Bench slop score)
-
 const SLOP_TRIGRAMS = [
   'a testament to',
   'a tapestry of',
@@ -139,20 +106,13 @@ const SLOP_TRIGRAMS = [
   'the intricacies of',
 ];
 
-// ── Structural Patterns ─────────────────────────────────────────────────────
-// AI text has measurably different structure from human text
-
-/**
- * Detect AI slop patterns in tweet text
- *
- * @param {string} text - Tweet text
- * @returns {Object} Slop detection results
- */
 export function detectSlop(text) {
   const findings = {
-    slop_score: 0,           // 0-100 (0 = human, 100 = pure AI slop)
+    section_title: 'Negative-feedback risk (Grox)',
+    section_description: 'Predicts likelihood of triggering not_interested / block_author / mute_author heads and suppressing banger score.',
+    slop_score: 0,
     is_likely_ai: false,
-    confidence: 'low',       // low, medium, high
+    confidence: 'low',
     slop_words_found: [],
     slop_phrases_found: [],
     slop_trigrams_found: [],
@@ -161,10 +121,10 @@ export function detectSlop(text) {
     strengths: [],
     suggestions: [],
     breakdown: {
-      word_score: 0,         // 0-100 (60% of final)
-      phrase_score: 0,       // 0-100 (25% of final)
-      trigram_score: 0,      // 0-100 (15% of final - adapted for short text)
-      structural_score: 0,   // bonus penalty
+      word_score: 0,
+      phrase_score: 0,
+      trigram_score: 0,
+      structural_score: 0,
     },
   };
 
@@ -174,8 +134,6 @@ export function detectSlop(text) {
   const lowerText = cleanText.toLowerCase();
   const words = lowerText.split(/\s+/);
   const wordCount = words.length;
-
-  // ── 1. Slop Word Detection (60% weight) ──
 
   let wordHits = { critical: [], high: [], medium: [] };
 
@@ -198,14 +156,11 @@ export function detectSlop(text) {
     }
   }
 
-  // Score: each critical word = 20pts, high = 10pts, medium = 5pts, capped at 100
   const rawWordScore =
     wordHits.critical.length * 20 +
     wordHits.high.length * 10 +
     wordHits.medium.length * 5;
   findings.breakdown.word_score = Math.min(100, rawWordScore);
-
-  // ── 2. Slop Phrase Detection (25% weight) ──
 
   for (const phrase of SLOP_PHRASES) {
     if (phrase.pattern.test(cleanText)) {
@@ -220,8 +175,6 @@ export function detectSlop(text) {
     findings.slop_phrases_found.filter((p) => p.severity === 'low').length * 4;
   findings.breakdown.phrase_score = Math.min(100, rawPhraseScore);
 
-  // ── 3. Slop Trigram Detection (15% weight) ──
-
   for (const trigram of SLOP_TRIGRAMS) {
     if (lowerText.includes(trigram)) {
       findings.slop_trigrams_found.push(trigram);
@@ -231,33 +184,24 @@ export function detectSlop(text) {
   const rawTrigramScore = findings.slop_trigrams_found.length * 15;
   findings.breakdown.trigram_score = Math.min(100, rawTrigramScore);
 
-  // ── 4. Structural Pattern Detection (bonus penalty) ──
-
-  // Check for unnaturally perfect grammar + corporate tone in a tweet context
-  // Tweets should feel casual, not like a press release
-
-  // Excessive semicolons (rare in human tweets, common in AI)
   const semicolonCount = (cleanText.match(/;/g) || []).length;
   if (semicolonCount >= 2) {
     findings.structural_flags.push('Multiple semicolons — rare in human tweets, common in AI');
     findings.breakdown.structural_score += 10;
   }
 
-  // Em-dash overuse (AI loves em-dashes)
   const emDashCount = (cleanText.match(/[—–]/g) || []).length;
   if (emDashCount >= 3) {
     findings.structural_flags.push('Excessive em-dashes — AI overuses these for dramatic pauses');
     findings.breakdown.structural_score += 8;
   }
 
-  // Colon-list pattern ("Here's the thing: [something]. Here's another: [thing]")
   const colonCount = (cleanText.match(/:/g) || []).length;
   if (colonCount >= 3) {
     findings.structural_flags.push('Multiple colons — AI list/explanation pattern');
     findings.breakdown.structural_score += 8;
   }
 
-  // Sentence uniformity (low burstiness) — AI generates very uniform sentence lengths
   const sentences = cleanText.split(/[.!?]+/).filter((s) => s.trim().length > 5);
   if (sentences.length >= 3) {
     const lengths = sentences.map((s) => s.trim().split(/\s+/).length);
@@ -266,17 +210,14 @@ export function detectSlop(text) {
     const stdDev = Math.sqrt(variance);
     const coeffOfVariation = avgLen > 0 ? stdDev / avgLen : 0;
 
-    // Human text has high burstiness (CV > 0.4), AI text is uniform (CV < 0.2)
     if (coeffOfVariation < 0.15 && wordCount > 20) {
       findings.structural_flags.push(`Very uniform sentence lengths (CV: ${coeffOfVariation.toFixed(2)}) — low burstiness, typical of AI`);
       findings.breakdown.structural_score += 12;
     }
   }
 
-  // Bullet/numbered list in a tweet (AI formatting bleed)
   if (/^\s*[\d]+[.)]\s/m.test(cleanText) || /^\s*[-•]\s/m.test(cleanText)) {
     if (sentences.length <= 2) {
-      // Only flag if the tweet IS a list, not if it mentions numbers naturally
       const listItems = cleanText.match(/^\s*[\d]+[.)]\s/gm) || cleanText.match(/^\s*[-•]\s/gm) || [];
       if (listItems.length >= 3) {
         findings.structural_flags.push('Formatted list in tweet — AI formatting bleed');
@@ -285,14 +226,12 @@ export function detectSlop(text) {
     }
   }
 
-  // Starts with a number emoji list pattern (1️⃣ 2️⃣ 3️⃣)
   const numberEmojis = cleanText.match(/[\d]️⃣/g) || [];
   if (numberEmojis.length >= 3) {
     findings.structural_flags.push('Number emoji list format — common in AI-generated threads');
     findings.breakdown.structural_score += 5;
   }
 
-  // "Sentence adverb" stacking — AI loves starting sentences with transition adverbs
   const sentenceAdverbs = sentences.filter((s) =>
     /^\s*(Moreover|Furthermore|Additionally|Consequently|Subsequently|Notably|Importantly|Essentially|Fundamentally|Interestingly|Remarkably|Ultimately)/i.test(s)
   );
@@ -301,8 +240,6 @@ export function detectSlop(text) {
     findings.breakdown.structural_score += 15;
   }
 
-  // Participial phrase opening — instruction-tuned models use these at 2-5x the rate of humans
-  // e.g., "Leveraging cutting-edge technology, we..." / "Having analyzed the data, it's clear..."
   const participialOpeners = sentences.filter((s) =>
     /^\s*(leveraging|harnessing|utilizing|navigating|embracing|fostering|showcasing|highlighting|emphasizing|having \w+ed|building on|drawing from)/i.test(s.trim())
   );
@@ -311,7 +248,6 @@ export function detectSlop(text) {
     findings.breakdown.structural_score += 8;
   }
 
-  // "From X to Y" construction — e.g., "From bustling cities to serene landscapes"
   if (/from \w[\w\s]+ to \w[\w\s]+/i.test(cleanText) && /from/.test(lowerText)) {
     const fromToMatches = cleanText.match(/from [\w\s]+ to [\w\s]+/gi) || [];
     if (fromToMatches.length >= 1 && fromToMatches.some((m) => m.split(/\s+/).length >= 5)) {
@@ -320,14 +256,12 @@ export function detectSlop(text) {
     }
   }
 
-  // Hidden Unicode characters (zero-width spaces, smart quotes from copy-paste)
   const hiddenChars = cleanText.match(/[\u200B\u200C\u200D\uFEFF]/g) || [];
   if (hiddenChars.length > 0) {
     findings.structural_flags.push(`Hidden Unicode characters detected (${hiddenChars.length}) — possible copy-paste from AI tool`);
     findings.breakdown.structural_score += 10;
   }
 
-  // Excessive positivity without substance — AI defaults to agreeableness
   const positiveSuperlatives = (cleanText.match(/\b(amazing|incredible|remarkable|extraordinary|fantastic|wonderful|brilliant|magnificent|outstanding|exceptional)\b/gi) || []).length;
   if (positiveSuperlatives >= 3) {
     findings.structural_flags.push(`${positiveSuperlatives} positive superlatives — AI defaults to excessive agreeableness`);
@@ -336,20 +270,14 @@ export function detectSlop(text) {
 
   findings.breakdown.structural_score = Math.min(100, findings.breakdown.structural_score);
 
-  // ── Calculate Final Slop Score ──
-
-  // EQ-Bench weighting: 60% words, 25% phrases, 15% trigrams + structural bonus
   const baseScore =
     findings.breakdown.word_score * 0.60 +
     findings.breakdown.phrase_score * 0.25 +
     findings.breakdown.trigram_score * 0.15;
 
-  // Structural score adds up to 20 points on top
   const structuralBonus = findings.breakdown.structural_score * 0.20;
 
   findings.slop_score = Math.round(Math.min(100, baseScore + structuralBonus));
-
-  // ── Determine AI likelihood ──
 
   if (findings.slop_score >= 50) {
     findings.is_likely_ai = true;
@@ -361,8 +289,6 @@ export function detectSlop(text) {
     findings.is_likely_ai = false;
     findings.confidence = 'low';
   }
-
-  // ── Generate Issues, Strengths, Suggestions ──
 
   if (findings.slop_score >= 50) {
     findings.issues.push({
@@ -383,7 +309,6 @@ export function detectSlop(text) {
     findings.strengths.push(`Low slop score (${findings.slop_score}/100) — reads like authentic human writing.`);
   }
 
-  // Specific word callouts
   if (findings.slop_words_found.length > 0) {
     const critWords = findings.slop_words_found.filter((w) => w.severity === 'critical');
     if (critWords.length > 0) {
@@ -404,7 +329,6 @@ export function detectSlop(text) {
     }
   }
 
-  // Specific phrase callouts
   if (findings.slop_phrases_found.length > 0) {
     const topPhrases = findings.slop_phrases_found.slice(0, 3);
     findings.suggestions.push(
@@ -412,14 +336,12 @@ export function detectSlop(text) {
     );
   }
 
-  // Structural callouts
   if (findings.structural_flags.length > 0) {
     findings.suggestions.push(
       'Fix structural AI tells: ' + findings.structural_flags[0] + '.'
     );
   }
 
-  // General slop-avoidance advice
   if (findings.slop_score >= 10) {
     findings.suggestions.push(
       'Write like you talk. Use contractions, casual language, and imperfect grammar. Real tweets have personality — AI slop doesn\'t.'
@@ -436,9 +358,6 @@ export function detectSlop(text) {
   return findings;
 }
 
-/**
- * Match a word as a whole word (not substring)
- */
 function matchesWord(text, word) {
   const regex = new RegExp(`\\b${escapeRegex(word)}\\b`, 'i');
   return regex.test(text);
@@ -448,7 +367,6 @@ function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// ── Slop Word Replacements (for suggestions) ──
 export const SLOP_REPLACEMENTS = {
   delve: ['dig into', 'explore', 'look at', 'get into'],
   tapestry: ['mix', 'blend', 'collection'],

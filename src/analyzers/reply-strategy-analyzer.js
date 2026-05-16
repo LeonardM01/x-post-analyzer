@@ -1,17 +1,5 @@
-/**
- * Reply Strategy Analyzer - Evaluates how well a tweet is optimized for driving replies
- *
- * This is the MOST IMPORTANT analyzer because:
- * - Replies have a weight of 13.5 (27x a like at 0.5)
- * - Author-engaged replies have a weight of 75.0 (150x a like)
- * - The algorithm MASSIVELY rewards conversation generation
- */
-
 import { LEGACY_2023_WEIGHTS } from '../algorithm-weights.js';
 
-/**
- * Conversational hooks that drive replies
- */
 const CONVERSATION_HOOKS = [
   { pattern: /\?$/, name: 'Ends with question', weight: 3 },
   { pattern: /\?[^\w]*$/, name: 'Question at end', weight: 3 },
@@ -35,9 +23,6 @@ const CONVERSATION_HOOKS = [
   { pattern: /if you could/i, name: 'Hypothetical question', weight: 3 },
 ];
 
-/**
- * Debate triggers - statements that provoke disagreement/discussion
- */
 const DEBATE_TRIGGERS = [
   { pattern: /\bis (dead|overrated|underrated|overhyped)\b/i, name: 'Provocative claim', weight: 3 },
   { pattern: /\bnobody (talks|cares|knows) about\b/i, name: 'Exclusivity claim', weight: 3 },
@@ -50,13 +35,17 @@ const DEBATE_TRIGGERS = [
   { pattern: /\bnot enough people\b/i, name: '"Not enough people" framing', weight: 2 },
 ];
 
-/**
- * Analyze reply optimization
- */
-export function analyzeReplyStrategy(text) {
+const REPLY_BAIT_PATTERNS = [
+  /drop your\b/i,
+  /wrong answers only/i,
+  /reply with\b/i,
+  /tell me (your|a|an)\b/i,
+];
+
+export function analyzeReplyStrategy(text, options = {}) {
   const findings = {
     score: 0,
-    reply_score: 0,      // 0-100 score specifically for reply potential
+    reply_score: 0,
     hooks_found: [],
     debate_triggers_found: [],
     issues: [],
@@ -64,7 +53,6 @@ export function analyzeReplyStrategy(text) {
     suggestions: [],
     algorithm_context: {
       reply_weight: LEGACY_2023_WEIGHTS.replied,
-      author_reply_weight: LEGACY_2023_WEIGHTS.replied_and_engaged_by_author,
       like_weight: LEGACY_2023_WEIGHTS.favorited,
       reply_vs_like_ratio: LEGACY_2023_WEIGHTS.replied / LEGACY_2023_WEIGHTS.favorited,
     },
@@ -72,7 +60,6 @@ export function analyzeReplyStrategy(text) {
 
   if (!text || text.trim().length === 0) return findings;
 
-  // Check for conversation hooks
   let hookScore = 0;
   for (const hook of CONVERSATION_HOOKS) {
     if (hook.pattern.test(text)) {
@@ -81,7 +68,6 @@ export function analyzeReplyStrategy(text) {
     }
   }
 
-  // Check for debate triggers
   let debateScore = 0;
   for (const trigger of DEBATE_TRIGGERS) {
     if (trigger.pattern.test(text)) {
@@ -90,7 +76,6 @@ export function analyzeReplyStrategy(text) {
     }
   }
 
-  // Calculate reply potential score (0-100)
   findings.reply_score = Math.min(100, (hookScore + debateScore) * 8);
 
   if (findings.hooks_found.length === 0 && findings.debate_triggers_found.length === 0) {
@@ -99,7 +84,7 @@ export function analyzeReplyStrategy(text) {
       message: 'No reply triggers detected. This tweet is unlikely to generate meaningful replies.',
     });
     findings.suggestions.push(
-      'Add a question at the end of your tweet. Replies are worth 27x more than likes in the algorithm.'
+      'Add a question at the end of your tweet. Replies drive reply_score, follow_author_score, and dwell_time — multiple confirmed heads.'
     );
     findings.suggestions.push(
       'Frame your content as an opinion or hot take to provoke discussion.'
@@ -123,12 +108,17 @@ export function analyzeReplyStrategy(text) {
     }
   }
 
-  // Author engagement reminder (most important factor)
   findings.suggestions.push(
-    'Reply to commenters — it drives reply_score, follow_author_score, and dwell_time, all confirmed engagement heads in the 2026 model.'
+    'Reply to commenters — it drives reply_score, follow_author_score, and dwell_time — multiple confirmed engagement heads in the 2026 model.'
   );
 
-  // Check for "conversation continuation" potential
+  const hasReplyBait = REPLY_BAIT_PATTERNS.some((p) => p.test(text));
+  if (hasReplyBait && (options.lowFollower || options.lowFollower === undefined)) {
+    findings.suggestions.push(
+      'Reply-bait phrases ("Drop your...", "Wrong answers only", "Reply with...", "Tell me...") can trigger SpamEasiLowFollowerClassifier on accounts with low follower counts. Use sparingly if your account is growing.'
+    );
+  }
+
   const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 0);
   if (sentences.length === 1 && !text.includes('?')) {
     findings.suggestions.push(

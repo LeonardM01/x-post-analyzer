@@ -189,7 +189,7 @@ console.log('Report Generation:');
   assert(report.includes('## Overall Score'), 'Report has score section');
   assert(report.includes('## Algorithm Weight Reference'), 'Report has weight reference');
   assert(report.includes('## Reply Strategy Analysis'), 'Report has reply strategy');
-  assert(report.includes('## AI Slop Detection'), 'Report has AI slop section');
+  assert(report.includes('Negative-feedback risk (Grox)'), 'Report has negative-feedback risk section');
   assert(report.includes('## Action Steps to Improve'), 'Report has suggestions');
   assert(report.includes('## Quick Checklist'), 'Report has checklist');
 }
@@ -231,6 +231,39 @@ console.log('Algorithm Weights (xalgo 2026):');
   assert(ep.predictions.follow_author !== undefined, 'engagement prediction has follow_author key');
   assert(ep.predictions.vqv !== undefined, 'engagement prediction has vqv key');
 }
+
+// --- Text Analyzer Length / Dwell-time framing ---
+console.log('Text Analyzer (dwell-time framing):');
+
+{
+  const result = analyzeText('Short');
+  assert(result.issues.some(i => i.message.includes('dwell')), '50-char tweet flagged with dwell-time framing');
+}
+
+{
+  const result = analyzeText('A'.repeat(50));
+  assert(result.score < 80, '50-char tweet penalized as too short');
+  assert(result.issues.length > 0, '50-char tweet has issues');
+}
+
+{
+  const result = analyzeText('A'.repeat(300));
+  assert(result.issues.some(i => i.message.includes('Long tweet') || i.severity === 'low'), '300-char tweet flagged as too long');
+}
+
+console.log('');
+
+// --- Reply Strategy: no 75.0 or 150x ---
+console.log('Reply Strategy (xalgo 2026 framing):');
+
+{
+  const result = analyzeReplyStrategy('What do you think about this?');
+  const allText = JSON.stringify(result);
+  assert(!allText.includes('75.0'), 'Reply strategy output does not contain 75.0');
+  assert(!allText.includes('150x'), 'Reply strategy output does not contain 150x');
+}
+
+console.log('');
 
 // --- Banger Predictor Tests ---
 console.log('Banger Predictor:');

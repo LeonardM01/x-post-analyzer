@@ -46,7 +46,7 @@ export function generateReport(analysis) {
   lines.push(`| Text Quality | ${analysis.analysis.text.score}/100 | Length, readability, spam signals |`);
   lines.push(`| Media | ${analysis.analysis.media.has_media ? 'Yes' : 'None'} (${analysis.analysis.media.boost_factor}x) | ${analysis.analysis.media.has_video ? 'Video' : analysis.analysis.media.has_image ? 'Image' : analysis.analysis.media.has_poll ? 'Poll' : 'No media'} |`);
   lines.push(`| Reply Potential | ${analysis.analysis.reply_strategy.reply_score}/100 | Hooks, debate triggers, CTAs |`);
-  lines.push(`| AI Slop Score | ${analysis.analysis.slop.slop_score}/100 | ${analysis.analysis.slop.slop_score === 0 ? 'Clean — no AI patterns' : analysis.analysis.slop.slop_score < 25 ? 'Minor AI signals' : analysis.analysis.slop.slop_score < 50 ? 'Moderate AI patterns' : 'High AI slop — rewrite needed'} |`);
+  lines.push(`| Neg-feedback risk | ${analysis.analysis.slop.slop_score}/100 | ${analysis.analysis.slop.slop_score === 0 ? 'Clean — no AI patterns' : analysis.analysis.slop.slop_score < 25 ? 'Minor AI signals' : analysis.analysis.slop.slop_score < 50 ? 'Moderate AI patterns' : 'High AI slop — rewrite needed'} |`);
   lines.push(`| Engagement Prediction | Grade ${analysis.analysis.engagement_prediction.score_grade.grade} | ${analysis.analysis.engagement_prediction.score_grade.description} |`);
   lines.push('');
 
@@ -174,12 +174,15 @@ export function generateReport(analysis) {
   lines.push('> Replies also drive dwell_time and follow_author — two confirmed 2026 heads.');
   lines.push('');
 
-  // AI Slop Analysis
   const slop = analysis.analysis.slop;
   lines.push('---');
   lines.push('');
-  lines.push('## AI Slop Detection');
+  lines.push(`## ${slop.section_title || 'Negative-feedback risk (Grox)'}`);
   lines.push('');
+  if (slop.section_description) {
+    lines.push(`*${slop.section_description}*`);
+    lines.push('');
+  }
   lines.push(`**Slop Score: ${slop.slop_score}/100** (0 = human, 100 = pure AI slop)`);
   lines.push('');
 

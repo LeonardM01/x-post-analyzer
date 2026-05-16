@@ -1,19 +1,5 @@
 #!/usr/bin/env node
 
-/**
- * x-post-analyzer CLI
- * Analyze X/Twitter posts from the command line
- *
- * Usage:
- *   node src/cli.js "Your tweet text here"
- *   node src/cli.js --file tweets.txt
- *   node src/cli.js --image "Tweet text with image"
- *   node src/cli.js --video "Tweet text with video"
- *   node src/cli.js --poll "Tweet text with poll"
- *   node src/cli.js --compare "Tweet 1" "Tweet 2" "Tweet 3"
- *   node src/cli.js --output report.md "Your tweet text"
- */
-
 import { readFileSync, writeFileSync } from 'fs';
 import { analyzeTweet, compareTweets } from './analyzer.js';
 import { generateReport, generateComparisonReport } from './report/markdown-report.js';
@@ -27,6 +13,7 @@ function parseArgs(args) {
     postDate: null,
     help: false,
     file: null,
+    lowFollower: false,
   };
 
   let i = 0;
@@ -64,6 +51,9 @@ function parseArgs(args) {
       case '-f':
         options.file = args[++i];
         break;
+      case '--low-follower':
+        options.lowFollower = true;
+        break;
       default:
         if (!arg.startsWith('-')) {
           options.tweets.push(arg);
@@ -93,29 +83,21 @@ OPTIONS:
   --poll              Tweet includes a poll
   --compare           Compare multiple tweets and rank them
   --date DATE         ISO date string for posting time analysis
+  --low-follower      Flag account as low-follower (enables SpamEasi classifier warning)
 
 EXAMPLES:
-  # Analyze a single tweet
   node src/cli.js "Just shipped a new feature! What do you think?"
-
-  # Analyze with image and save report
   node src/cli.js --image -o report.md "Check out this design. What would you change?"
-
-  # Compare multiple tweets
   node src/cli.js --compare "Tweet version 1" "Tweet version 2" "Tweet version 3"
-
-  # Read tweets from file
   node src/cli.js -f tweets.txt --compare -o comparison.md
 
-ALGORITHM WEIGHTS (what matters most):
-  Author-engaged Reply:  75.0  (150x a like) - REPLY TO YOUR COMMENTERS!
-  Reply:                 13.5  (27x a like)  - Drive conversation
-  Profile Click:         12.0  (24x a like)
-  Good Click:            11.0  (22x a like)
-  Retweet:                1.0  (2x a like)
-  Like:                   0.5  (baseline)
-  Report:              -369.0  (avoid at all costs)
-  Negative Feedback:    -74.0  (avoid spam signals)
+WHAT MATTERS (xalgo 2026):
+  reply_score          — replies drive multiple heads at once
+  dwell_time           — 3-8s read window (75-200 chars) is optimal
+  follow_author_score  — driven by profile clicks and quality replies
+  vqv_score            — video quality view (duration-gated)
+  not_interested       — heavy negative signal, avoid spam patterns
+  report               — critical negative, avoid at all costs
 `);
 }
 
@@ -143,11 +125,11 @@ function main() {
   let report;
 
   if (options.compare && options.tweets.length > 1) {
-    // Compare mode
     const tweetObjects = options.tweets.map((text) => ({
       text,
       media: options.media,
       postDate: options.postDate,
+      lowFollower: options.lowFollower,
     }));
 
     const comparison = compareTweets(tweetObjects);
@@ -159,11 +141,11 @@ function main() {
     });
     console.log(`\n${comparison.recommendation}\n`);
   } else {
-    // Single tweet analysis
     const tweet = {
       text: options.tweets[0],
       media: options.media,
       postDate: options.postDate,
+      lowFollower: options.lowFollower,
     };
 
     const analysis = analyzeTweet(tweet);

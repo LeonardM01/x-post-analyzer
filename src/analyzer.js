@@ -18,12 +18,12 @@ import { LEGACY_2023_WEIGHTS } from './algorithm-weights.js';
  * @returns {Object} Complete analysis results
  */
 export function analyzeTweet(tweet) {
-  const { text, media = {}, postDate = null } = tweet;
+  const { text, media = {}, postDate = null, lowFollower } = tweet;
 
   const textAnalysis = analyzeText(text);
-  const mediaAnalysis = analyzeMedia(media);
+  const mediaAnalysis = analyzeMedia({ ...media, tweetText: text });
   const timingAnalysis = analyzeTiming(postDate);
-  const replyStrategy = analyzeReplyStrategy(text);
+  const replyStrategy = analyzeReplyStrategy(text, { lowFollower });
   const slopAnalysis = detectSlop(text);
   const engagementPrediction = predictEngagement(textAnalysis, mediaAnalysis);
   const bangerResult = bangerPredictor(text);

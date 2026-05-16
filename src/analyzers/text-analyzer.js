@@ -1,13 +1,5 @@
-/**
- * Text Analyzer - Analyzes tweet text structure and content quality
- * Based on Twitter algorithm signals for content ranking
- */
-
 import { OPTIMAL_TWEET, SPAM_SIGNALS, REPLY_TRIGGERS } from '../algorithm-weights.js';
 
-/**
- * Common call-to-action phrases that drive replies
- */
 const CTA_PATTERNS = [
   /what do you think/i,
   /what['']s your/i,
@@ -50,9 +42,6 @@ const OPINION_PATTERNS = [
   /stop (doing|saying|posting)/i,
 ];
 
-/**
- * Analyze tweet text and return structured findings
- */
 export function analyzeText(text) {
   const findings = {
     score: 100,
@@ -71,7 +60,6 @@ export function analyzeText(text) {
   const cleanText = text.trim();
   const charCount = cleanText.length;
 
-  // --- Character length analysis ---
   findings.metrics.char_count = charCount;
   const { text_length } = OPTIMAL_TWEET;
 
@@ -79,16 +67,18 @@ export function analyzeText(text) {
     findings.score -= 25;
     findings.issues.push({
       severity: 'high',
-      message: `Too short (${charCount} chars). Tweets under ${text_length.min} chars get significantly less engagement.`,
+      message: `Too short (${charCount} chars). Tweets under ${text_length.min} chars generate insufficient dwell_time — too fast a read to register as engagement.`,
     });
-    findings.suggestions.push(`Expand your tweet to at least ${text_length.ideal_min} characters for optimal reach.`);
+    findings.suggestions.push(`Expand to at least ${text_length.ideal_min} characters. At ~25 chars/sec read speed, ${text_length.ideal_min}-${text_length.ideal_max} chars hit the 3-8s dwell window that feeds the dwell_time head.`);
   } else if (charCount >= text_length.ideal_min && charCount <= text_length.ideal_max) {
-    findings.strengths.push(`Good length (${charCount} chars) - in the optimal ${text_length.ideal_min}-${text_length.ideal_max} range.`);
+    findings.strengths.push(`Good length (${charCount} chars) — hits the 3-8s dwell-time window (${text_length.ideal_min}-${text_length.ideal_max} chars at ~25 chars/sec).`);
   } else if (charCount > text_length.ideal_max) {
-    findings.strengths.push(`Decent length (${charCount} chars) - close to max, which can work if content is compelling.`);
+    findings.issues.push({
+      severity: 'low',
+      message: `Long tweet (${charCount} chars). Over ${text_length.ideal_max} chars may reduce scan-read completion and dwell efficiency.`,
+    });
   }
 
-  // --- Hashtag analysis ---
   const hashtags = cleanText.match(/#\w+/g) || [];
   findings.metrics.hashtag_count = hashtags.length;
 
@@ -103,7 +93,6 @@ export function analyzeText(text) {
     findings.strengths.push(`Good hashtag usage (${hashtags.length}) - within optimal range.`);
   }
 
-  // --- Mention analysis ---
   const mentions = cleanText.match(/@\w+/g) || [];
   findings.metrics.mention_count = mentions.length;
 
@@ -116,7 +105,6 @@ export function analyzeText(text) {
     findings.suggestions.push('Reduce mentions to 1-2 max. Tag people in replies instead.');
   }
 
-  // --- URL analysis ---
   const urls = cleanText.match(/https?:\/\/\S+/g) || [];
   findings.metrics.url_count = urls.length;
 
@@ -138,7 +126,6 @@ export function analyzeText(text) {
     findings.strengths.push('No external links - the algorithm prefers on-platform content.');
   }
 
-  // Check if tweet is URL-only
   const textWithoutUrls = cleanText.replace(/https?:\/\/\S+/g, '').trim();
   if (urls.length > 0 && textWithoutUrls.length < 20) {
     findings.score -= 25;
@@ -149,7 +136,6 @@ export function analyzeText(text) {
     findings.suggestions.push('Add substantial commentary or opinion about the linked content.');
   }
 
-  // --- Caps lock analysis ---
   const letters = cleanText.replace(/[^a-zA-Z]/g, '');
   const upperCase = letters.replace(/[^A-Z]/g, '');
   const capsRatio = letters.length > 0 ? upperCase.length / letters.length : 0;
@@ -164,7 +150,6 @@ export function analyzeText(text) {
     findings.suggestions.push('Reduce ALL CAPS usage. Use it sparingly for emphasis on 1-2 words max.');
   }
 
-  // --- Emoji analysis ---
   const emojiRegex = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}\u{200D}\u{20E3}\u{E0020}-\u{E007F}]/gu;
   const emojis = cleanText.match(emojiRegex) || [];
   findings.metrics.emoji_count = emojis.length;
@@ -178,7 +163,6 @@ export function analyzeText(text) {
     findings.suggestions.push(`Reduce to ${SPAM_SIGNALS.excessive_emojis} or fewer emojis.`);
   }
 
-  // --- Repeated characters ---
   const repeatedChars = cleanText.match(/(.)\1{3,}/g) || [];
   if (repeatedChars.length > 0) {
     findings.score -= 10;
@@ -189,16 +173,15 @@ export function analyzeText(text) {
     findings.suggestions.push('Avoid repeating characters excessively (e.g., "!!!!!!" or "sooooo").');
   }
 
-  // --- Reply/engagement triggers ---
   const hasQuestion = /\?/.test(cleanText);
   if (hasQuestion) {
     findings.strengths.push(
-      `Contains a question - questions drive replies (${REPLY_TRIGGERS.question_mark.boost}x boost). Replies are worth 27x more than likes.`
+      `Contains a question — questions drive reply_score and dwell_time, two confirmed 2026 engagement heads.`
     );
     findings.score += 5;
   } else {
     findings.suggestions.push(
-      'Add a question to encourage replies. Replies are weighted 27x more than likes in the algorithm.'
+      'Add a question to encourage replies. Replies feed reply_score, dwell_time, and follow_author_score simultaneously.'
     );
   }
 
@@ -220,7 +203,6 @@ export function analyzeText(text) {
     findings.score += 2;
   }
 
-  // --- Line breaks / readability ---
   const lineBreaks = (cleanText.match(/\n/g) || []).length;
   findings.metrics.line_breaks = lineBreaks;
 
@@ -228,7 +210,6 @@ export function analyzeText(text) {
     findings.suggestions.push('Add line breaks for readability. Well-formatted tweets get more engagement.');
   }
 
-  // Clamp score
   findings.score = Math.max(0, Math.min(100, findings.score));
 
   return findings;
