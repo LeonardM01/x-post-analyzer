@@ -7,6 +7,7 @@ import { generateReport } from '../src/report/markdown-report.js';
 import { analyzeText } from '../src/analyzers/text-analyzer.js';
 import { analyzeReplyStrategy } from '../src/analyzers/reply-strategy-analyzer.js';
 import { detectSlop } from '../src/analyzers/slop-detector.js';
+import { CURRENT_ACTIONS, LEGACY_2023_WEIGHTS } from '../src/algorithm-weights.js';
 
 let passed = 0;
 let failed = 0;
@@ -189,6 +190,44 @@ console.log('Report Generation:');
   assert(report.includes('## AI Slop Detection'), 'Report has AI slop section');
   assert(report.includes('## Action Steps to Improve'), 'Report has suggestions');
   assert(report.includes('## Quick Checklist'), 'Report has checklist');
+}
+
+// --- Algorithm Weights Tests ---
+console.log('Algorithm Weights (xalgo 2026):');
+
+{
+  const expectedActions = ['favorite', 'reply', 'repost', 'photo_expand', 'click', 'profile_click', 'vqv', 'share', 'share_via_dm', 'share_via_copy_link', 'dwell', 'quote', 'quoted_click', 'follow_author', 'not_interested', 'block_author', 'mute_author', 'report'];
+  for (const action of expectedActions) {
+    assert(CURRENT_ACTIONS[action] !== undefined, `CURRENT_ACTIONS has key: ${action}`);
+  }
+}
+
+{
+  assert(LEGACY_2023_WEIGHTS.replied_and_engaged_by_author === 75.0, 'Archive guard: legacy replied_and_engaged_by_author === 75.0');
+  assert(LEGACY_2023_WEIGHTS.replied === 13.5, 'Archive guard: legacy replied === 13.5');
+  assert(LEGACY_2023_WEIGHTS.report === -369.0, 'Archive guard: legacy report === -369.0');
+}
+
+{
+  assert(CURRENT_ACTIONS.not_interested.category === 'negative', 'not_interested is negative category');
+  assert(CURRENT_ACTIONS.block_author.category === 'negative', 'block_author is negative category');
+  assert(CURRENT_ACTIONS.mute_author.category === 'negative', 'mute_author is negative category');
+  assert(CURRENT_ACTIONS.report.category === 'negative', 'report is negative category');
+}
+
+{
+  assert(CURRENT_ACTIONS.favorite.current_weight === null, 'current_weight is null (unpublished)');
+  assert(CURRENT_ACTIONS.favorite.legacy_2023_weight === 0.5, 'favorite legacy weight is 0.5');
+  assert(CURRENT_ACTIONS.reply.legacy_2023_weight === 13.5, 'reply legacy weight is 13.5');
+}
+
+{
+  const ep = analyzeTweet({ text: 'What do you think about this? Drop your opinion!' }).analysis.engagement_prediction;
+  assert(ep.predictions.reply !== undefined, 'engagement prediction has reply key');
+  assert(ep.predictions.favorite !== undefined, 'engagement prediction has favorite key');
+  assert(ep.predictions.not_interested !== undefined, 'engagement prediction has not_interested key');
+  assert(ep.predictions.follow_author !== undefined, 'engagement prediction has follow_author key');
+  assert(ep.predictions.vqv !== undefined, 'engagement prediction has vqv key');
 }
 
 console.log('');

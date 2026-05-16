@@ -2,3 +2,7 @@ node_modules/
 analysis-report.md
 comparison-report.md
 example-report.md
+
+.cursor*
+.mcp*
+LEAN*

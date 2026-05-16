@@ -9,7 +9,7 @@ import { analyzeTiming } from './analyzers/timing-analyzer.js';
 import { predictEngagement } from './analyzers/engagement-predictor.js';
 import { analyzeReplyStrategy } from './analyzers/reply-strategy-analyzer.js';
 import { detectSlop } from './analyzers/slop-detector.js';
-import { ENGAGEMENT_WEIGHTS } from './algorithm-weights.js';
+import { LEGACY_2023_WEIGHTS } from './algorithm-weights.js';
 
 /**
  * Run complete analysis on a tweet
@@ -85,7 +85,7 @@ export function analyzeTweet(tweet) {
     issues: allIssues,
     strengths: allStrengths,
     suggestions: allSuggestions,
-    algorithm_weights: ENGAGEMENT_WEIGHTS,
+    algorithm_weights: LEGACY_2023_WEIGHTS,
     analyzed_at: new Date().toISOString(),
   };
 }

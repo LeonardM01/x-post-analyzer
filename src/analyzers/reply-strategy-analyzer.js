@@ -7,7 +7,7 @@
  * - The algorithm MASSIVELY rewards conversation generation
  */
 
-import { ENGAGEMENT_WEIGHTS } from '../algorithm-weights.js';
+import { LEGACY_2023_WEIGHTS } from '../algorithm-weights.js';
 
 /**
  * Conversational hooks that drive replies
@@ -63,10 +63,10 @@ export function analyzeReplyStrategy(text) {
     strengths: [],
     suggestions: [],
     algorithm_context: {
-      reply_weight: ENGAGEMENT_WEIGHTS.replied,
-      author_reply_weight: ENGAGEMENT_WEIGHTS.replied_and_engaged_by_author,
-      like_weight: ENGAGEMENT_WEIGHTS.favorited,
-      reply_vs_like_ratio: ENGAGEMENT_WEIGHTS.replied / ENGAGEMENT_WEIGHTS.favorited,
+      reply_weight: LEGACY_2023_WEIGHTS.replied,
+      author_reply_weight: LEGACY_2023_WEIGHTS.replied_and_engaged_by_author,
+      like_weight: LEGACY_2023_WEIGHTS.favorited,
+      reply_vs_like_ratio: LEGACY_2023_WEIGHTS.replied / LEGACY_2023_WEIGHTS.favorited,
     },
   };
 
@@ -125,7 +125,7 @@ export function analyzeReplyStrategy(text) {
 
   // Author engagement reminder (most important factor)
   findings.suggestions.push(
-    `CRITICAL: Reply to EVERY comment on this tweet. Author-engaged replies have a weight of ${ENGAGEMENT_WEIGHTS.replied_and_engaged_by_author} (150x a like). This is the single biggest factor for reach.`
+    'Reply to commenters — it drives reply_score, follow_author_score, and dwell_time, all confirmed engagement heads in the 2026 model.'
   );
 
   // Check for "conversation continuation" potential
