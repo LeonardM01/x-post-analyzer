@@ -7,6 +7,8 @@ import { generateReport } from '../src/report/markdown-report.js';
 import { analyzeText } from '../src/analyzers/text-analyzer.js';
 import { analyzeReplyStrategy } from '../src/analyzers/reply-strategy-analyzer.js';
 import { detectSlop } from '../src/analyzers/slop-detector.js';
+import bangerPredictor from '../src/analyzers/banger-predictor.js';
+import safetyAnalyzer from '../src/analyzers/safety-analyzer.js';
 import { CURRENT_ACTIONS, LEGACY_2023_WEIGHTS } from '../src/algorithm-weights.js';
 
 let passed = 0;
@@ -228,6 +230,48 @@ console.log('Algorithm Weights (xalgo 2026):');
   assert(ep.predictions.not_interested !== undefined, 'engagement prediction has not_interested key');
   assert(ep.predictions.follow_author !== undefined, 'engagement prediction has follow_author key');
   assert(ep.predictions.vqv !== undefined, 'engagement prediction has vqv key');
+}
+
+// --- Banger Predictor Tests ---
+console.log('Banger Predictor:');
+
+{
+  const result = bangerPredictor('5 brutal truths nobody in tech talks about. I found this out the hard way in 2026.');
+  assert(result.isBanger === true, 'Tweet with strong hook + specificity is a banger');
+  assert(result.score >= 0.4, 'Banger score meets threshold');
+  assert(typeof result.factors.novelty === 'number', 'Returns novelty factor');
+}
+
+{
+  const result = bangerPredictor("game changer here's why take notes bookmark this let that sink in mind blown thread below");
+  assert(result.isBanger === false, 'Cliche-heavy tweet is not a banger');
+  assert(result.factors.clicheDensity < 0.3, 'Cliche density is heavily penalized');
+}
+
+console.log('');
+
+// --- Safety Analyzer Tests ---
+console.log('Safety Analyzer:');
+
+{
+  const result = safetyAnalyzer('follow for follow! earn $500 a day, click here, drop your link below free followers giveaway follow');
+  const spamCat = result.find((c) => c.categoryId === 'spam');
+  assert(spamCat !== undefined, 'Spam category present');
+  assert(spamCat.risk !== 'low', 'Spam tweet triggers non-low spam risk');
+}
+
+{
+  const result = safetyAnalyzer('Just shipped a new feature. What do you think? Hot take: most devs over-engineer their first SaaS.');
+  const allLow = result.every((c) => c.risk === 'low');
+  assert(allLow === true, 'Clean tweet — all categories are low risk');
+}
+
+{
+  const result = safetyAnalyzer('some random tweet');
+  assert(Array.isArray(result), 'Returns array');
+  assert(result.length === 7, 'Returns all 7 Grox categories');
+  assert(result[0].categoryId !== undefined, 'Each result has categoryId');
+  assert(result[0].deluxeReasoningApplied !== undefined, 'Each result has deluxeReasoningApplied');
 }
 
 console.log('');

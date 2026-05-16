@@ -265,6 +265,47 @@ export function generateReport(analysis) {
   lines.push('```');
   lines.push('');
 
+  // Banger Likelihood
+  const banger = analysis.analysis.banger;
+  if (banger) {
+    lines.push('---');
+    lines.push('');
+    lines.push('## Banger Likelihood');
+    lines.push('');
+    lines.push(`**Score: ${(banger.score * 100).toFixed(0)}/100** (threshold: ${(banger.threshold * 100).toFixed(0)}) — ${banger.isBanger ? 'BANGER' : 'Not a banger'}`);
+    lines.push('');
+    const factors = banger.factors;
+    const factorEntries = Object.entries(factors).map(([k, v]) => ({ key: k, val: v }));
+    factorEntries.sort((a, b) => b.val - a.val);
+    const top = factorEntries[0];
+    const bottom = factorEntries[factorEntries.length - 1];
+    lines.push(`| Factor | Score |`);
+    lines.push(`|--------|-------|`);
+    for (const { key, val } of factorEntries) {
+      lines.push(`| ${key} | ${(val * 100).toFixed(0)} |`);
+    }
+    lines.push('');
+    lines.push(`**Top contributor:** ${top.key} (${(top.val * 100).toFixed(0)})`);
+    lines.push(`**Weakest factor:** ${bottom.key} (${(bottom.val * 100).toFixed(0)})`);
+    lines.push('');
+  }
+
+  // Grox Safety Risk
+  const safety = analysis.analysis.safety;
+  const nonLow = safety ? safety.filter((c) => c.risk !== 'low') : [];
+  if (nonLow.length > 0) {
+    lines.push('---');
+    lines.push('');
+    lines.push('## Grox Safety Risk');
+    lines.push('');
+    lines.push('| Category | Risk | Signals | Deluxe Reasoning |');
+    lines.push('|----------|------|---------|-----------------|');
+    for (const cat of nonLow) {
+      lines.push(`| ${cat.label} | ${cat.risk.toUpperCase()} | ${cat.matchedSignals.length} | ${cat.deluxeReasoningApplied ? 'yes' : 'no'} |`);
+    }
+    lines.push('');
+  }
+
   // Engagement Prediction Breakdown
   const ep = analysis.analysis.engagement_prediction;
   lines.push('---');

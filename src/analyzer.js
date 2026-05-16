@@ -1,14 +1,11 @@
-/**
- * Main Tweet Analyzer - Orchestrates all analysis modules
- * Combines text, media, timing, engagement, and reply strategy analysis
- */
-
 import { analyzeText } from './analyzers/text-analyzer.js';
 import { analyzeMedia } from './analyzers/media-analyzer.js';
 import { analyzeTiming } from './analyzers/timing-analyzer.js';
 import { predictEngagement } from './analyzers/engagement-predictor.js';
 import { analyzeReplyStrategy } from './analyzers/reply-strategy-analyzer.js';
 import { detectSlop } from './analyzers/slop-detector.js';
+import bangerPredictor from './analyzers/banger-predictor.js';
+import safetyAnalyzer from './analyzers/safety-analyzer.js';
 import { LEGACY_2023_WEIGHTS } from './algorithm-weights.js';
 
 /**
@@ -23,13 +20,14 @@ import { LEGACY_2023_WEIGHTS } from './algorithm-weights.js';
 export function analyzeTweet(tweet) {
   const { text, media = {}, postDate = null } = tweet;
 
-  // Run all analyzers
   const textAnalysis = analyzeText(text);
   const mediaAnalysis = analyzeMedia(media);
   const timingAnalysis = analyzeTiming(postDate);
   const replyStrategy = analyzeReplyStrategy(text);
   const slopAnalysis = detectSlop(text);
   const engagementPrediction = predictEngagement(textAnalysis, mediaAnalysis);
+  const bangerResult = bangerPredictor(text);
+  const safetyResult = safetyAnalyzer(text);
 
   // Calculate overall score (weighted combination)
   const overallScore = calculateOverallScore({
@@ -81,6 +79,8 @@ export function analyzeTweet(tweet) {
       reply_strategy: replyStrategy,
       slop: slopAnalysis,
       engagement_prediction: engagementPrediction,
+      banger: bangerResult,
+      safety: safetyResult,
     },
     issues: allIssues,
     strengths: allStrengths,
