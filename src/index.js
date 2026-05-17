@@ -6,6 +6,7 @@
  */
 
 export { analyzeTweet, compareTweets } from './analyzer.js';
+export { isEnabled as isGrokEnabled } from './grok/client.js';
 export { generateReport, generateComparisonReport } from './report/markdown-report.js';
 export { CURRENT_ACTIONS, CONTINUOUS_ACTIONS, LEGACY_2023_WEIGHTS, GROX_SAFETY_CATEGORIES, OPTIMAL_TWEET, SPAM_SIGNALS, NEGATIVE_SIGNALS } from './algorithm-weights.js';
 export { default as bangerPredictor } from './analyzers/banger-predictor.js';

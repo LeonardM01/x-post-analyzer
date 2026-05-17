@@ -105,7 +105,7 @@ WHAT MATTERS (xalgo 2026):
 `);
 }
 
-function main() {
+async function main() {
   const args = process.argv.slice(2);
   const options = parseArgs(args);
 
@@ -136,7 +136,7 @@ function main() {
       lowFollower: options.lowFollower,
     }));
 
-    const comparison = compareTweets(tweetObjects);
+    const comparison = await compareTweets(tweetObjects);
     report = generateComparisonReport(comparison);
 
     console.log(`\nRanking:`);
@@ -152,7 +152,7 @@ function main() {
       lowFollower: options.lowFollower,
     };
 
-    const analysis = analyzeTweet(tweet);
+    const analysis = await analyzeTweet(tweet);
     report = generateReport(analysis);
 
     // Print summary to console

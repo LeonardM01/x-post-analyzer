@@ -1,7 +1,3 @@
-/**
- * Tests for x-post-analyzer
- */
-
 import { analyzeTweet, compareTweets } from '../src/analyzer.js';
 import { generateReport } from '../src/report/markdown-report.js';
 import { analyzeText } from '../src/analyzers/text-analyzer.js';
@@ -62,19 +58,19 @@ console.log('');
 console.log('Reply Strategy Analyzer:');
 
 {
-  const result = analyzeReplyStrategy('Just posted a new blog.');
+  const result = await analyzeReplyStrategy('Just posted a new blog.');
   assert(result.reply_score < 20, 'Statement without question has low reply score');
   assert(result.hooks_found.length === 0, 'No hooks in plain statement');
 }
 
 {
-  const result = analyzeReplyStrategy('Hot take: JavaScript is overrated. Change my mind. What do you think?');
+  const result = await analyzeReplyStrategy('Hot take: JavaScript is overrated. Change my mind. What do you think?');
   assert(result.reply_score > 50, 'Tweet with hooks has high reply score');
   assert(result.hooks_found.length >= 2, 'Multiple hooks detected');
 }
 
 {
-  const result = analyzeReplyStrategy('Unpopular opinion: most people don\'t need a framework. Agree or disagree?');
+  const result = await analyzeReplyStrategy('Unpopular opinion: most people don\'t need a framework. Agree or disagree?');
   assert(result.hooks_found.length >= 1, 'Unpopular opinion detected');
   assert(result.debate_triggers_found.length >= 1, 'Debate triggers detected');
 }
@@ -85,7 +81,7 @@ console.log('');
 console.log('Full Analysis:');
 
 {
-  const result = analyzeTweet({ text: 'Great tweet with a question. What do you think?', media: { hasImage: true } });
+  const result = await analyzeTweet({ text: 'Great tweet with a question. What do you think?', media: { hasImage: true } });
   assert(result.overall_score > 0, 'Analysis returns a score');
   assert(result.overall_grade !== undefined, 'Analysis returns a grade');
   assert(result.issues !== undefined, 'Analysis returns issues');
@@ -93,12 +89,12 @@ console.log('Full Analysis:');
 }
 
 {
-  const result = analyzeTweet({ text: '' });
+  const result = await analyzeTweet({ text: '' });
   assert(result.overall_score < 40, 'Empty tweet scores poorly');
 }
 
 {
-  const result = analyzeTweet({
+  const result = await analyzeTweet({
     text: 'I believe the biggest mistake in tech hiring is optimizing for leetcode skills over real-world problem solving.\n\nMost people get this wrong.\n\nWhat\'s your experience? Agree or disagree?',
     media: { hasImage: true },
   });
@@ -112,7 +108,7 @@ console.log('');
 console.log('Comparison:');
 
 {
-  const result = compareTweets([
+  const result = await compareTweets([
     { text: 'Just shipped something.' },
     { text: 'Just shipped a major feature that changes how we think about testing. Here\'s what I learned. What\'s your approach to testing? Agree or disagree?', media: { hasImage: true } },
   ]);
@@ -168,8 +164,7 @@ console.log('AI Slop Detector:');
 }
 
 {
-  // Test that slop is integrated into full analysis
-  const result = analyzeTweet({ text: 'This robust and comprehensive solution leverages cutting-edge paradigms to revolutionize the landscape.' });
+  const result = await analyzeTweet({ text: 'This robust and comprehensive solution leverages cutting-edge paradigms to revolutionize the landscape.' });
   assert(result.analysis.slop !== undefined, 'Slop analysis present in full analysis');
   assert(result.analysis.slop.slop_score > 0, 'Slop score populated in full analysis');
 }
@@ -180,7 +175,7 @@ console.log('');
 console.log('Report Generation:');
 
 {
-  const analysis = analyzeTweet({
+  const analysis = await analyzeTweet({
     text: 'Hot take: the best code is the code you never write. Most people overcomplicate everything. What\'s your take?',
     media: { hasImage: true },
   });
@@ -224,7 +219,7 @@ console.log('Algorithm Weights (xalgo 2026):');
 }
 
 {
-  const ep = analyzeTweet({ text: 'What do you think about this? Drop your opinion!' }).analysis.engagement_prediction;
+  const ep = (await analyzeTweet({ text: 'What do you think about this? Drop your opinion!' })).analysis.engagement_prediction;
   assert(ep.predictions.reply !== undefined, 'engagement prediction has reply key');
   assert(ep.predictions.favorite !== undefined, 'engagement prediction has favorite key');
   assert(ep.predictions.not_interested !== undefined, 'engagement prediction has not_interested key');
@@ -269,14 +264,14 @@ console.log('');
 console.log('Banger Predictor:');
 
 {
-  const result = bangerPredictor('5 brutal truths nobody in tech talks about. I found this out the hard way in 2026.');
+  const result = await bangerPredictor('5 brutal truths nobody in tech talks about. I found this out the hard way in 2026.');
   assert(result.isBanger === true, 'Tweet with strong hook + specificity is a banger');
   assert(result.score >= 0.4, 'Banger score meets threshold');
   assert(typeof result.factors.novelty === 'number', 'Returns novelty factor');
 }
 
 {
-  const result = bangerPredictor("game changer here's why take notes bookmark this let that sink in mind blown thread below");
+  const result = await bangerPredictor("game changer here's why take notes bookmark this let that sink in mind blown thread below");
   assert(result.isBanger === false, 'Cliche-heavy tweet is not a banger');
   assert(result.factors.clicheDensity < 0.3, 'Cliche density is heavily penalized');
 }
@@ -287,20 +282,20 @@ console.log('');
 console.log('Safety Analyzer:');
 
 {
-  const result = safetyAnalyzer('follow for follow! earn $500 a day, click here, drop your link below free followers giveaway follow');
+  const result = await safetyAnalyzer('follow for follow! earn $500 a day, click here, drop your link below free followers giveaway follow');
   const spamCat = result.find((c) => c.categoryId === 'spam');
   assert(spamCat !== undefined, 'Spam category present');
   assert(spamCat.risk !== 'low', 'Spam tweet triggers non-low spam risk');
 }
 
 {
-  const result = safetyAnalyzer('Just shipped a new feature. What do you think? Hot take: most devs over-engineer their first SaaS.');
+  const result = await safetyAnalyzer('Just shipped a new feature. What do you think? Hot take: most devs over-engineer their first SaaS.');
   const allLow = result.every((c) => c.risk === 'low');
   assert(allLow === true, 'Clean tweet — all categories are low risk');
 }
 
 {
-  const result = safetyAnalyzer('some random tweet');
+  const result = await safetyAnalyzer('some random tweet');
   assert(Array.isArray(result), 'Returns array');
   assert(result.length === 7, 'Returns all 7 Grox categories');
   assert(result[0].categoryId !== undefined, 'Each result has categoryId');
@@ -331,7 +326,7 @@ console.log('');
 console.log('Report: no leaked signals:');
 
 {
-  const analysis = analyzeTweet({ text: 'Hot take: the best code is code you never write. What do you think? Agree or disagree?' });
+  const analysis = await analyzeTweet({ text: 'Hot take: the best code is code you never write. What do you think? Agree or disagree?' });
   const report = generateReport(analysis);
   assert(!report.includes('replied_and_engaged_by_author'), 'Report does not contain replied_and_engaged_by_author');
   assert(!report.includes('150x'), 'Report does not contain 150x');
@@ -345,19 +340,19 @@ console.log('');
 console.log('Low-follower default:');
 
 {
-  const result = analyzeReplyStrategy('Drop your best advice below. Wrong answers only!');
+  const result = await analyzeReplyStrategy('Drop your best advice below. Wrong answers only!');
   const hasWarning = result.suggestions.some((s) => s.includes('SpamEasi'));
   assert(hasWarning, 'No flags (undefined) → SpamEasi warning fires by default');
 }
 
 {
-  const result = analyzeReplyStrategy('Drop your best advice below. Wrong answers only!', { lowFollower: true });
+  const result = await analyzeReplyStrategy('Drop your best advice below. Wrong answers only!', { lowFollower: true });
   const hasWarning = result.suggestions.some((s) => s.includes('SpamEasi'));
   assert(hasWarning, '--low-follower → SpamEasi warning fires');
 }
 
 {
-  const result = analyzeReplyStrategy('Drop your best advice below. Wrong answers only!', { lowFollower: false });
+  const result = await analyzeReplyStrategy('Drop your best advice below. Wrong answers only!', { lowFollower: false });
   const hasWarning = result.suggestions.some((s) => s.includes('SpamEasi'));
   assert(!hasWarning, '--has-follower-context (false) → SpamEasi warning suppressed');
 }
@@ -368,14 +363,158 @@ console.log('');
 console.log('Banger empty input:');
 
 {
-  const result = bangerPredictor('');
+  const result = await bangerPredictor('');
   assert(result.score === 0, 'bangerPredictor("") returns score 0');
   assert(result.isBanger === false, 'bangerPredictor("") returns isBanger false');
 }
 
 {
-  const result = bangerPredictor('   ');
+  const result = await bangerPredictor('   ');
   assert(result.score === 0, 'bangerPredictor("   ") returns score 0');
+}
+
+console.log('');
+
+// --- Grok Integration Tests ---
+console.log('Grok Integration:');
+
+function mockFetch(responder) {
+  const original = globalThis.fetch;
+  globalThis.fetch = responder;
+  return () => { globalThis.fetch = original; };
+}
+
+{
+  const restore = mockFetch(async () => ({
+    ok: true,
+    json: async () => ({ choices: [{ message: { content: JSON.stringify({ score: 0.7, reasoning: 'Strong hook and novelty' }) } }] }),
+  }));
+  process.env.XAI_API_KEY = 'test-key';
+  try {
+    const result = await bangerPredictor('Nobody talks about this brutal hiring truth. I learned it the hard way in 2026.');
+    assert(result.source === 'grok', 'Grok banger: source is grok');
+    assert(result.isBanger === true, 'Grok banger: isBanger true when score=0.7');
+    assert(result.factors === null, 'Grok banger: factors is null');
+  } finally {
+    restore();
+    delete process.env.XAI_API_KEY;
+  }
+}
+
+{
+  let fetchCallCount = 0;
+  const restore = mockFetch(async (url, opts) => {
+    fetchCallCount++;
+    const body = JSON.parse(opts.body);
+    const isFullModel = body.model === 'grok-3';
+    if (isFullModel) {
+      return {
+        ok: true,
+        json: async () => ({
+          choices: [{
+            message: {
+              content: JSON.stringify({
+                categories: [
+                  { categoryId: 'adult_content', risk: 'high', reasoning: 'Explicit adult content detected' },
+                ],
+              }),
+            },
+          }],
+        }),
+      };
+    }
+    return {
+      ok: true,
+      json: async () => ({
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              categories: [
+                { categoryId: 'violent_media', risk: 'low' },
+                { categoryId: 'adult_content', risk: 'high' },
+                { categoryId: 'spam', risk: 'low' },
+                { categoryId: 'illegal_regulated', risk: 'low' },
+                { categoryId: 'hate_abuse', risk: 'low' },
+                { categoryId: 'violent_speech', risk: 'low' },
+                { categoryId: 'self_harm', risk: 'low' },
+              ],
+            }),
+          },
+        }],
+      }),
+    };
+  });
+  process.env.XAI_API_KEY = 'test-key';
+  try {
+    const result = await safetyAnalyzer('explicit adult content here');
+    assert(fetchCallCount === 2, 'Safety: fetch called twice (pass1 mini + pass2 full for adult_content high)');
+    const adultCat = result.find((c) => c.categoryId === 'adult_content');
+    assert(adultCat?.deluxeReasoningApplied === true, 'Safety: adult_content has deluxeReasoningApplied true');
+  } finally {
+    restore();
+    delete process.env.XAI_API_KEY;
+  }
+}
+
+{
+  const restore = mockFetch(async () => { throw new Error('network failure'); });
+  process.env.XAI_API_KEY = 'test-key';
+  try {
+    const result = await bangerPredictor('Hot take: most devs over-engineer their SaaS. What do you think?');
+    assert(result.source === 'heuristic', 'Grok fetch error: falls back to heuristic');
+    assert(typeof result.score === 'number', 'Fallback: score is a number');
+  } finally {
+    restore();
+    delete process.env.XAI_API_KEY;
+  }
+}
+
+{
+  let fetchCalled = false;
+  const restore = mockFetch(async () => { fetchCalled = true; return { ok: true, json: async () => ({}) }; });
+  const savedKey = process.env.XAI_API_KEY;
+  delete process.env.XAI_API_KEY;
+  try {
+    const result = await bangerPredictor('Hot take: water is wet. What do you think?');
+    assert(!fetchCalled, 'No XAI_API_KEY: fetch never called');
+    assert(result.source === 'heuristic', 'No XAI_API_KEY: heuristic runs');
+  } finally {
+    restore();
+    if (savedKey !== undefined) process.env.XAI_API_KEY = savedKey;
+  }
+}
+
+{
+  const restore = mockFetch(async () => ({
+    ok: true,
+    json: async () => ({ choices: [{ message: { content: JSON.stringify({ isSpammy: false, reasoning: 'Looks fine' }) } }] }),
+  }));
+  process.env.XAI_API_KEY = 'test-key';
+  try {
+    const result = await analyzeReplyStrategy('Drop your best advice below. Wrong answers only!', { lowFollower: true });
+    const hasWarning = result.suggestions.some((s) => s.includes('SpamEasi'));
+    assert(!hasWarning, 'Grok spam=false: SpamEasi warning suppressed');
+  } finally {
+    restore();
+    delete process.env.XAI_API_KEY;
+  }
+}
+
+{
+  const restore = mockFetch(async () => ({
+    ok: true,
+    json: async () => ({ choices: [{ message: { content: JSON.stringify({ isSpammy: true, reasoning: 'Classic reply-bait spam pattern' }) } }] }),
+  }));
+  process.env.XAI_API_KEY = 'test-key';
+  try {
+    const result = await analyzeReplyStrategy('Drop your best advice below. Wrong answers only!', { lowFollower: true });
+    const hasWarning = result.suggestions.some((s) => s.includes('SpamEasi'));
+    assert(hasWarning, 'Grok spam=true: SpamEasi warning present');
+    assert(result.grokSpamReasoning === 'Classic reply-bait spam pattern', 'Grok spam=true: grokSpamReasoning attached');
+  } finally {
+    restore();
+    delete process.env.XAI_API_KEY;
+  }
 }
 
 console.log('');

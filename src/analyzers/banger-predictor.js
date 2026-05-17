@@ -1,3 +1,6 @@
+import * as grokClient from '../grok/client.js';
+import gradeBanger from '../grok/classifiers/banger.js';
+
 const STOP_WORDS = new Set([
   'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
   'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'be',
@@ -128,9 +131,16 @@ function computeClicheDensity(text) {
   return Math.max(0, score);
 }
 
-export default function bangerPredictor(tweetText, options = {}) {
+export default async function bangerPredictor(tweetText, options = {}) {
   if (!tweetText || !tweetText.trim()) {
-    return { score: 0, threshold: 0.4, isBanger: false, factors: { novelty: 0, specificity: 0, hookStrength: 0, shareability: 0, clicheDensity: 0 } };
+    return { score: 0, threshold: 0.4, isBanger: false, factors: { novelty: 0, specificity: 0, hookStrength: 0, shareability: 0, clicheDensity: 0 }, source: 'heuristic' };
+  }
+
+  if (grokClient.isEnabled()) {
+    try {
+      const grokResult = await gradeBanger(tweetText);
+      return { ...grokResult, factors: null };
+    } catch { /* fall through to heuristic */ }
   }
 
   const tokens = tokenize(tweetText || '');
@@ -156,5 +166,6 @@ export default function bangerPredictor(tweetText, options = {}) {
     threshold,
     isBanger: score >= threshold,
     factors: { novelty, specificity, hookStrength, shareability, clicheDensity },
+    source: 'heuristic',
   };
 }

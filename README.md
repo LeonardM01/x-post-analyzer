@@ -94,6 +94,35 @@ ever deleted?"
 
 ---
 
+## Optional: Grok API integration
+
+By default the tool uses fast local heuristics for banger prediction, safety classification, and spam detection. Setting `XAI_API_KEY` replaces those heuristics with live Grok calls for higher accuracy.
+
+**What it does**
+
+- Banger predictor — Grok rates novelty, hook, shareability, and signal-to-cliché ratio on a 0–1 scale. Replaces the local bigram/entropy model.
+- Safety classifier — Two-pass classification across all 7 PTOS categories. Sensitive categories (`violent_media`, `adult_content`) get a second reasoning pass on `grok-3` when rated medium/high.
+- Spam classifier — Grok decides whether reply-bait phrases would trip SpamEasiLowFollowerClassifier, suppressing the warning when it says the tweet is fine.
+
+**How to enable**
+
+Sign up at [https://console.x.ai](https://console.x.ai) and export your key:
+
+```bash
+export XAI_API_KEY=xai-...
+node src/cli.js "Your tweet here"
+```
+
+**Rough cost**
+
+Approximately $1–2 per 1,000 tweets with default mini routing. The `adult_content` and `violent_media` deluxe reasoning pass uses `grok-3` and is only triggered when those categories score medium or high.
+
+**Failure behavior**
+
+Any Grok error (network failure, timeout, non-2xx response) silently falls back to the heuristic analyzer. The `source` field in results will be `'grok'` or `'heuristic'` so you can tell which ran.
+
+---
+
 ## How It Works
 
 The tool runs **8 analyzers** on your tweet, each targeting a different part of the algorithm:

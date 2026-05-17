@@ -1,4 +1,6 @@
 import { LEGACY_2023_WEIGHTS } from '../algorithm-weights.js';
+import * as grokClient from '../grok/client.js';
+import gradeSpam from '../grok/classifiers/spam.js';
 
 const CONVERSATION_HOOKS = [
   { pattern: /\?$/, name: 'Ends with question', weight: 3 },
@@ -42,7 +44,7 @@ const REPLY_BAIT_PATTERNS = [
   /tell me (your|a|an)\b/i,
 ];
 
-export function analyzeReplyStrategy(text, options = {}) {
+export async function analyzeReplyStrategy(text, options = {}) {
   const findings = {
     score: 0,
     reply_score: 0,
@@ -114,9 +116,20 @@ export function analyzeReplyStrategy(text, options = {}) {
 
   const hasReplyBait = REPLY_BAIT_PATTERNS.some((p) => p.test(text));
   if (hasReplyBait && (options.lowFollower || options.lowFollower === undefined)) {
-    findings.suggestions.push(
-      'Reply-bait phrases ("Drop your...", "Wrong answers only", "Reply with...", "Tell me...") can trigger SpamEasiLowFollowerClassifier on accounts with low follower counts. Use sparingly if your account is growing.'
-    );
+    let grokSpam = null;
+    if (grokClient.isEnabled()) {
+      try {
+        grokSpam = await gradeSpam(text, { hasFollowerContext: options.lowFollower !== undefined });
+      } catch { /* fall through */ }
+    }
+
+    if (grokSpam?.isSpammy !== false) {
+      const warning = 'Reply-bait phrases ("Drop your...", "Wrong answers only", "Reply with...", "Tell me...") can trigger SpamEasiLowFollowerClassifier on accounts with low follower counts. Use sparingly if your account is growing.';
+      findings.suggestions.push(warning);
+      if (grokSpam?.reasoning) {
+        findings.grokSpamReasoning = grokSpam.reasoning;
+      }
+    }
   }
 
   const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 0);

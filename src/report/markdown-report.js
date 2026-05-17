@@ -158,6 +158,13 @@ export function generateReport(analysis) {
   lines.push('> Replies also drive dwell_time and follow_author — two confirmed 2026 heads.');
   lines.push('');
 
+  if (rs.grokSpamReasoning) {
+    lines.push('### SpamEasi Warning _via Grok_');
+    lines.push('');
+    lines.push(`> ${rs.grokSpamReasoning}`);
+    lines.push('');
+  }
+
   const slop = analysis.analysis.slop;
   lines.push('---');
   lines.push('');
@@ -252,45 +259,57 @@ export function generateReport(analysis) {
   lines.push('```');
   lines.push('');
 
-  // Banger Likelihood
   const banger = analysis.analysis.banger;
   if (banger) {
     lines.push('---');
     lines.push('');
-    lines.push('## Banger Likelihood');
+    const bangerHeading = banger.source === 'grok' ? '## Banger Likelihood _via Grok_' : '## Banger Likelihood';
+    lines.push(bangerHeading);
     lines.push('');
     lines.push(`**Score: ${(banger.score * 100).toFixed(0)}/100** (threshold: ${(banger.threshold * 100).toFixed(0)}) — ${banger.isBanger ? 'BANGER' : 'Not a banger'}`);
     lines.push('');
-    const factors = banger.factors;
-    const factorEntries = Object.entries(factors).map(([k, v]) => ({ key: k, val: v }));
-    factorEntries.sort((a, b) => b.val - a.val);
-    const top = factorEntries[0];
-    const bottom = factorEntries[factorEntries.length - 1];
-    lines.push(`| Factor | Score |`);
-    lines.push(`|--------|-------|`);
-    for (const { key, val } of factorEntries) {
-      lines.push(`| ${key} | ${(val * 100).toFixed(0)} |`);
+    if (banger.source === 'grok' && banger.reasoning) {
+      lines.push(`> ${banger.reasoning}`);
+      lines.push('');
     }
-    lines.push('');
-    lines.push(`**Top contributor:** ${top.key} (${(top.val * 100).toFixed(0)})`);
-    lines.push(`**Weakest factor:** ${bottom.key} (${(bottom.val * 100).toFixed(0)})`);
-    lines.push('');
+    if (banger.factors) {
+      const factorEntries = Object.entries(banger.factors).map(([k, v]) => ({ key: k, val: v }));
+      factorEntries.sort((a, b) => b.val - a.val);
+      const top = factorEntries[0];
+      const bottom = factorEntries[factorEntries.length - 1];
+      lines.push(`| Factor | Score |`);
+      lines.push(`|--------|-------|`);
+      for (const { key, val } of factorEntries) {
+        lines.push(`| ${key} | ${(val * 100).toFixed(0)} |`);
+      }
+      lines.push('');
+      lines.push(`**Top contributor:** ${top.key} (${(top.val * 100).toFixed(0)})`);
+      lines.push(`**Weakest factor:** ${bottom.key} (${(bottom.val * 100).toFixed(0)})`);
+      lines.push('');
+    }
   }
 
-  // Grox Safety Risk
   const safety = analysis.analysis.safety;
   const nonLow = safety ? safety.filter((c) => c.risk !== 'low') : [];
   if (nonLow.length > 0) {
     lines.push('---');
     lines.push('');
-    lines.push('## Grox Safety Risk');
+    const hasGrokSafety = nonLow.some((c) => c.source === 'grok');
+    lines.push(hasGrokSafety ? '## Grox Safety Risk _via Grok_' : '## Grox Safety Risk');
     lines.push('');
     lines.push('| Category | Risk | Signals | Deluxe Reasoning |');
     lines.push('|----------|------|---------|-----------------|');
     for (const cat of nonLow) {
-      lines.push(`| ${cat.label} | ${cat.risk.toUpperCase()} | ${cat.matchedSignals.length} | ${cat.deluxeReasoningApplied ? 'yes' : 'no'} |`);
+      const signalCount = cat.matchedSignals ? cat.matchedSignals.length : (cat.source === 'grok' ? '—' : 0);
+      lines.push(`| ${cat.label} | ${cat.risk.toUpperCase()} | ${signalCount} | ${cat.deluxeReasoningApplied ? 'yes' : 'no'} |`);
     }
     lines.push('');
+    for (const cat of nonLow) {
+      if (cat.source === 'grok' && cat.reasoning) {
+        lines.push(`**${cat.label}:** ${cat.reasoning}`);
+        lines.push('');
+      }
+    }
   }
 
   // Engagement Prediction Breakdown

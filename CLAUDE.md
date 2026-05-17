@@ -17,6 +17,9 @@ node src/cli.js [options] "tweet text here"
 - `-f tweets.txt` - read tweets from file
 - `--low-follower` - flag account as low-follower (SpamEasi classifier risk)
 
+### Environment
+- `XAI_API_KEY` (optional) — set to enable Grok API integration for banger, safety, and spam classifiers. Falls back to heuristics silently when unset or on error.
+
 ### What to Check (Priority Order)
 
 1. **Reply triggers** - Does the tweet ask a question or provoke discussion? Drives reply_score + dwell_time.

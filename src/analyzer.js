@@ -17,17 +17,20 @@ import { LEGACY_2023_WEIGHTS } from './algorithm-weights.js';
  * @param {string} [tweet.postDate] - ISO date string of when the tweet was/will be posted
  * @returns {Object} Complete analysis results
  */
-export function analyzeTweet(tweet) {
+export async function analyzeTweet(tweet) {
   const { text, media = {}, postDate = null, lowFollower } = tweet;
 
   const textAnalysis = analyzeText(text);
   const mediaAnalysis = analyzeMedia({ ...media, tweetText: text });
   const timingAnalysis = analyzeTiming(postDate);
-  const replyStrategy = analyzeReplyStrategy(text, { lowFollower });
   const slopAnalysis = detectSlop(text);
   const engagementPrediction = predictEngagement(textAnalysis, mediaAnalysis);
-  const bangerResult = bangerPredictor(text);
-  const safetyResult = safetyAnalyzer(text);
+
+  const [replyStrategy, bangerResult, safetyResult] = await Promise.all([
+    analyzeReplyStrategy(text, { lowFollower }),
+    bangerPredictor(text),
+    safetyAnalyzer(text),
+  ]);
 
   // Calculate overall score (weighted combination)
   const overallScore = calculateOverallScore({
@@ -93,18 +96,17 @@ export function analyzeTweet(tweet) {
 /**
  * Analyze multiple tweets and compare them
  */
-export function compareTweets(tweets) {
-  const results = tweets.map((tweet, index) => ({
-    index: index + 1,
-    ...analyzeTweet(tweet),
-  }));
+export async function compareTweets(tweets) {
+  const settled = await Promise.all(
+    tweets.map(async (tweet, index) => ({ index: index + 1, ...(await analyzeTweet(tweet)) }))
+  );
 
-  results.sort((a, b) => b.overall_score - a.overall_score);
+  settled.sort((a, b) => b.overall_score - a.overall_score);
 
   return {
-    ranked_tweets: results,
-    best: results[0],
-    recommendation: `Tweet #${results[0].index} is predicted to perform best with a score of ${results[0].overall_score}/100.`,
+    ranked_tweets: settled,
+    best: settled[0],
+    recommendation: `Tweet #${settled[0].index} is predicted to perform best with a score of ${settled[0].overall_score}/100.`,
   };
 }
 

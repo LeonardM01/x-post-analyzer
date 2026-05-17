@@ -1,4 +1,6 @@
 import { GROX_SAFETY_CATEGORIES } from '../algorithm-weights.js';
+import * as grokClient from '../grok/client.js';
+import gradeSafety from '../grok/classifiers/safety.js';
 
 const CATEGORY_PATTERNS = {
   violent_media: [
@@ -87,7 +89,13 @@ function matchesToRisk(count) {
   return 'high';
 }
 
-export default function safetyAnalyzer(tweetText) {
+export default async function safetyAnalyzer(tweetText) {
+  if (grokClient.isEnabled()) {
+    try {
+      return await gradeSafety(tweetText);
+    } catch { /* fall through to heuristic */ }
+  }
+
   const text = tweetText || '';
   const results = [];
 
@@ -102,6 +110,7 @@ export default function safetyAnalyzer(tweetText) {
       risk,
       deluxeReasoningApplied: category.deluxe_reasoning,
       matchedSignals,
+      source: 'heuristic',
     });
   }
 
