@@ -119,7 +119,7 @@ export async function analyzeReplyStrategy(text, options = {}) {
     let grokSpam = null;
     if (grokClient.isEnabled()) {
       try {
-        grokSpam = await gradeSpam(text, { hasFollowerContext: options.lowFollower !== undefined });
+        grokSpam = await gradeSpam(text, { hasFollowerContext: options.lowFollower === false });
       } catch { /* fall through */ }
     }
 

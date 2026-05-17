@@ -113,6 +113,8 @@ export XAI_API_KEY=xai-...
 node src/cli.js "Your tweet here"
 ```
 
+Set `XAI_API_KEY` in your shell or a local `.env` (gitignored). In CI, inject via your platform's secret manager — never commit a `.env` file.
+
 **Rough cost**
 
 Approximately $1–2 per 1,000 tweets with default mini routing. The `adult_content` and `violent_media` deluxe reasoning pass uses `grok-3` and is only triggered when those categories score medium or high.
@@ -385,9 +387,11 @@ Use it as a library in your own tools:
 ### Analyze a Single Tweet
 
 ```javascript
-import { analyzeTweet, generateReport } from './src/index.js';
+import { analyzeTweet, generateReport, isGrokEnabled } from './src/index.js';
 
-const analysis = analyzeTweet({
+console.log(isGrokEnabled()); // true if XAI_API_KEY is set
+
+const analysis = await analyzeTweet({
   text: 'Your tweet text here. What do you think?',
   media: { hasImage: true },    // optional
   postDate: '2025-04-01T14:00:00Z',  // optional
@@ -408,7 +412,7 @@ const report = generateReport(analysis);
 ```javascript
 import { compareTweets, generateComparisonReport } from './src/index.js';
 
-const comparison = compareTweets([
+const comparison = await compareTweets([
   { text: 'Version A — just a statement.' },
   { text: 'Version B — what do you think?', media: { hasImage: true } },
   { text: 'Version C — unpopular opinion: X is overrated. Change my mind.' },
@@ -426,26 +430,33 @@ const report = generateComparisonReport(comparison);
 ### Use Individual Analyzers
 
 ```javascript
-import { analyzeText, analyzeReplyStrategy, analyzeMedia, detectSlop } from './src/index.js';
+import { analyzeText, analyzeReplyStrategy, analyzeMedia, detectSlop, bangerPredictor, safetyAnalyzer } from './src/index.js';
 
-// Just check text quality
+// Just check text quality (sync)
 const text = analyzeText('Your tweet here');
 console.log(text.score, text.issues, text.strengths);
 
-// Just check reply potential
-const reply = analyzeReplyStrategy('Hot take: X is overrated. Agree?');
+// Just check reply potential (async — uses Grok when XAI_API_KEY is set)
+const reply = await analyzeReplyStrategy('Hot take: X is overrated. Agree?');
 console.log(reply.reply_score, reply.hooks_found);
 
-// Just check media impact
+// Just check media impact (sync)
 const media = analyzeMedia({ hasVideo: true });
 console.log(media.boost_factor); // 2.5
 
-// Just check for AI slop
+// Just check for AI slop (sync)
 const slop = detectSlop('Let me delve into this comprehensive framework...');
 console.log(slop.slop_score);         // 0-100
 console.log(slop.is_likely_ai);       // true/false
 console.log(slop.slop_words_found);   // [{ word: 'delve', severity: 'critical' }, ...]
 console.log(slop.slop_phrases_found); // [{ name: '...', severity: '...' }, ...]
+
+// Grok-backed classifiers (async; fall back to heuristic when key not set)
+const banger = await bangerPredictor('Your tweet here');
+console.log(banger.score, banger.source); // source: 'grok' | 'heuristic'
+
+const safety = await safetyAnalyzer('Your tweet here');
+console.log(safety); // [{ categoryId, label, risk, source, ... }]
 ```
 
 ---
@@ -576,6 +587,12 @@ x-post-analyzer/
 │   │   ├── slop-detector.js            # Negative-feedback risk (Grox slop signals)
 │   │   ├── banger-predictor.js         # Positive content quality (xalgo 2026, threshold ≥ 0.4)
 │   │   └── safety-analyzer.js          # Grox PTOS safety categories (7 heads)
+│   ├── grok/
+│   │   ├── client.js                   # xAI API client (isEnabled, callGrok, MODELS)
+│   │   └── classifiers/
+│   │       ├── banger.js               # Grok banger grader
+│   │       ├── safety.js               # Two-pass safety classifier (mini + grok-3 deluxe)
+│   │       └── spam.js                 # Grok spam/reply-bait classifier
 │   └── report/
 │       └── markdown-report.js          # Markdown report generator
 ├── test/

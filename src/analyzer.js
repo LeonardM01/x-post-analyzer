@@ -8,15 +8,6 @@ import bangerPredictor from './analyzers/banger-predictor.js';
 import safetyAnalyzer from './analyzers/safety-analyzer.js';
 import { LEGACY_2023_WEIGHTS } from './algorithm-weights.js';
 
-/**
- * Run complete analysis on a tweet
- *
- * @param {Object} tweet - Tweet object
- * @param {string} tweet.text - Tweet text content
- * @param {Object} [tweet.media] - Media options { hasImage, hasVideo, hasGif, hasPoll }
- * @param {string} [tweet.postDate] - ISO date string of when the tweet was/will be posted
- * @returns {Object} Complete analysis results
- */
 export async function analyzeTweet(tweet) {
   const { text, media = {}, postDate = null, lowFollower } = tweet;
 
@@ -32,7 +23,6 @@ export async function analyzeTweet(tweet) {
     safetyAnalyzer(text),
   ]);
 
-  // Calculate overall score (weighted combination)
   const overallScore = calculateOverallScore({
     textAnalysis,
     mediaAnalysis,
@@ -42,7 +32,6 @@ export async function analyzeTweet(tweet) {
     slopAnalysis,
   });
 
-  // Compile all issues, strengths, and suggestions
   const allIssues = [
     ...slopAnalysis.issues.map((i) => ({ ...i, source: 'AI Slop' })),
     ...textAnalysis.issues.map((i) => ({ ...i, source: 'Text' })),
@@ -67,7 +56,6 @@ export async function analyzeTweet(tweet) {
     ...replyStrategy.suggestions.map((s) => ({ message: s, source: 'Reply Strategy', priority: 'high' })),
   ];
 
-  // Sort suggestions: reply strategy first (highest impact)
   allSuggestions.sort((a, b) => priorityOrder(a.priority) - priorityOrder(b.priority));
 
   return {
@@ -93,9 +81,6 @@ export async function analyzeTweet(tweet) {
   };
 }
 
-/**
- * Analyze multiple tweets and compare them
- */
 export async function compareTweets(tweets) {
   const settled = await Promise.all(
     tweets.map(async (tweet, index) => ({ index: index + 1, ...(await analyzeTweet(tweet)) }))
@@ -111,22 +96,20 @@ export async function compareTweets(tweets) {
 }
 
 function calculateOverallScore({ textAnalysis, mediaAnalysis, timingAnalysis, replyStrategy, engagementPrediction, slopAnalysis }) {
-  // Weighted combination favoring reply strategy (most impact on algorithm)
   const weights = {
     text: 0.20,
     media: 0.12,
     timing: 0.08,
     reply_strategy: 0.25,
     engagement: 0.15,
-    slop_penalty: 0.20,     // AI slop is a major negative signal
+    slop_penalty: 0.20,
   };
 
   const textScore = textAnalysis.score;
-  const mediaScore = mediaAnalysis.score * (100 / 25); // Normalize to 0-100
-  const timingScore = timingAnalysis.score * (100 / 15); // Normalize to 0-100
+  const mediaScore = mediaAnalysis.score * (100 / 25);
+  const timingScore = timingAnalysis.score * (100 / 15);
   const replyScore = replyStrategy.reply_score;
   const engagementScore = Math.min(100, engagementPrediction.total_positive_score * 100);
-  // Invert slop score: high slop = low score for this component
   const slopScore = 100 - slopAnalysis.slop_score;
 
   const raw =

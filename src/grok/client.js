@@ -9,13 +9,9 @@ export function isEnabled() {
   return !!process.env.XAI_API_KEY;
 }
 
-export async function callGrok({ model, system, user, schema, signal: externalSignal }) {
+export async function callGrok({ model, system, user, schema }) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-  const combinedSignal = externalSignal
-    ? AbortSignal.any([controller.signal, externalSignal])
-    : controller.signal;
 
   let response;
   try {
@@ -37,15 +33,15 @@ export async function callGrok({ model, system, user, schema, signal: externalSi
         },
         temperature: 0,
       }),
-      signal: combinedSignal,
+      signal: controller.signal,
     });
   } finally {
     clearTimeout(timer);
   }
 
   if (!response.ok) {
-    const body = await response.text().catch(() => '');
-    throw new Error(`Grok API error ${response.status}: ${body}`);
+    // WHY: response body may echo auth context; never include in thrown errors
+    throw new Error(`Grok API error ${response.status}`);
   }
 
   const data = await response.json();

@@ -1,10 +1,3 @@
-/**
- * x-post-analyzer - Analyze X/Twitter posts against the open-source algorithm
- *
- * Based on: https://github.com/twitter/the-algorithm
- *           https://github.com/twitter/the-algorithm-ml
- */
-
 export { analyzeTweet, compareTweets } from './analyzer.js';
 export { isEnabled as isGrokEnabled } from './grok/client.js';
 export { generateReport, generateComparisonReport } from './report/markdown-report.js';
