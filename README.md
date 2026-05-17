@@ -22,7 +22,7 @@ You write a tweet. You hit post. It gets 12 likes. Meanwhile some guy posting "h
 
 **Because the algorithm decides who sees your tweet** — and it has very specific preferences baked into its scoring model.
 
-Twitter [open-sourced their algorithm](https://github.com/twitter/the-algorithm). We read all of it. This tool turns those findings into actionable feedback you can use *before* you post.
+X [open-sourced their algorithm](https://github.com/xai-org/x-algorithm). We read all of it. This tool turns those findings into actionable feedback you can use *before* you post.
 
 ---
 
@@ -466,7 +466,7 @@ console.log(safety); // [{ categoryId, label, risk, source, ... }]
 Everything in this tool comes from the algorithm repos:
 
 - **[xai-org/x-algorithm](https://github.com/xai-org/x-algorithm)** — Current upstream (2026). Action names and signal categories are sourced from here. Numeric weights are not published.
-- **[twitter/the-algorithm](https://github.com/twitter/the-algorithm)** — Original open-source release (2023). Recommendation pipeline (Scala/Java).
+- **[twitter/the-algorithm](https://github.com/twitter/the-algorithm)** — Original open-source release (2023, archived). Recommendation pipeline (Scala/Java).
 - **[twitter/the-algorithm-ml](https://github.com/twitter/the-algorithm-ml)** — Original Heavy Ranker ML model (Python). Source of 2023 legacy weights.
 
 ### How the "For You" Feed Works

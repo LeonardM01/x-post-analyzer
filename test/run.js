@@ -193,6 +193,44 @@ console.log('Report Generation:');
   assert(report.includes('## Quick Checklist'), 'Report has checklist');
 }
 
+{
+  const analysis = await analyzeTweet({
+    text: 'Hot take: the best code is the code you never write. Most people overcomplicate everything. What\'s your take?',
+    media: { hasImage: true },
+  });
+  const report = generateReport(analysis);
+  const epSection = report.slice(report.indexOf('## Engagement Prediction Breakdown'));
+  assert(!epSection.includes('| undefined |'), 'Engagement breakdown: no undefined in Weight column');
+  assert(!epSection.includes('undefined'), 'Engagement breakdown: no undefined values anywhere in section');
+}
+
+{
+  const analysis = await analyzeTweet({ text: '' });
+  analysis.issues = [{ severity: 'high', source: 'reply', message: 'No reply triggers detected' }];
+  const report = generateReport(analysis);
+  const checklistSection = report.slice(report.indexOf('## Quick Checklist'));
+  assert(checklistSection.includes('[ ] No critical issues'), 'Checklist: HIGH severity issue marks No critical issues as unchecked');
+}
+
+{
+  const analysis = await analyzeTweet({
+    text: 'Hot take: the best code is the code you never write. What do you think?',
+  });
+  const report = generateReport(analysis);
+  assert(!report.includes('SlopAuthorFeature'), 'Report does not contain SlopAuthorFeature');
+  assert(!report.includes('GrokSlopScoreRescorer'), 'Report does not contain GrokSlopScoreRescorer');
+  assert(!report.includes('SlopMinFollowers'), 'Report does not contain SlopMinFollowers');
+  assert(!report.includes('GrokSlopScore'), 'Report does not contain GrokSlopScore');
+}
+
+{
+  const analysis = await analyzeTweet({
+    text: 'Hot take: the best code is the code you never write. What do you think?',
+  });
+  const report = generateReport(analysis);
+  assert(!report.includes('github.com/twitter/the-algorithm'), 'Report does not contain github.com/twitter/the-algorithm');
+}
+
 // --- Algorithm Weights Tests ---
 console.log('Algorithm Weights (xalgo 2026):');
 
