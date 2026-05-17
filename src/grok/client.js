@@ -5,11 +5,20 @@ const TIMEOUT_MS = 15000;
 
 export const MODELS = { mini: 'grok-3-mini', full: 'grok-3' };
 
-export function isEnabled() {
-  return !!process.env.XAI_API_KEY;
+function resolveKey(apiKey) {
+  if (apiKey) return apiKey;
+  if (typeof process !== 'undefined' && process.env?.XAI_API_KEY) return process.env.XAI_API_KEY;
+  return null;
 }
 
-export async function callGrok({ model, system, user, schema }) {
+export function isEnabled(apiKey) {
+  return !!resolveKey(apiKey);
+}
+
+export async function callGrok({ model, system, user, schema, apiKey }) {
+  const key = resolveKey(apiKey);
+  if (!key) throw new Error('No XAI_API_KEY available');
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -19,7 +28,7 @@ export async function callGrok({ model, system, user, schema }) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.XAI_API_KEY}`,
+        Authorization: `Bearer ${key}`,
       },
       body: JSON.stringify({
         model,

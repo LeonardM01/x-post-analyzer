@@ -58,7 +58,7 @@ function pass2System(categoriesToRegrade) {
   return `You are a senior content safety reviewer applying detailed reasoning. Re-evaluate ONLY these categories: ${categoriesToRegrade.join(', ')}. Provide a risk level (low/medium/high) and a concise reasoning string for each.\n\n${INJECTION_GUARD}`;
 }
 
-export default async function gradeSafety(tweetText) {
+export default async function gradeSafety(tweetText, { apiKey } = {}) {
   const delimitedTweet = `<<<TWEET>>>\n${tweetText}\n<<<END_TWEET>>>`;
 
   const pass1Result = await callGrok({
@@ -66,6 +66,7 @@ export default async function gradeSafety(tweetText) {
     system: pass1System(),
     user: delimitedTweet,
     schema: PASS1_SCHEMA,
+    apiKey,
   });
 
   const pass1Map = new Map(pass1Result.categories.map((c) => [c.categoryId, c]));
@@ -81,6 +82,7 @@ export default async function gradeSafety(tweetText) {
       system: pass2System(needsDeluxe),
       user: delimitedTweet,
       schema: buildPass2Schema(needsDeluxe),
+      apiKey,
     });
     pass2Map = new Map(
       pass2Result.categories

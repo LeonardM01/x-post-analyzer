@@ -54,6 +54,13 @@ The `replied_and_engaged_by_author` head (75.0 in 2023) no longer exists as a di
 
 ---
 
+## Browser UI
+
+Run `npm run dev` and open http://localhost:8000.
+Paste a tweet, optionally paste your XAI_API_KEY to enable Grok analysis, click Analyze.
+
+---
+
 ## Quick Start
 
 Zero dependencies. Just Node.js (18+).

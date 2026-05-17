@@ -117,9 +117,9 @@ export async function analyzeReplyStrategy(text, options = {}) {
   const hasReplyBait = REPLY_BAIT_PATTERNS.some((p) => p.test(text));
   if (hasReplyBait && (options.lowFollower || options.lowFollower === undefined)) {
     let grokSpam = null;
-    if (grokClient.isEnabled()) {
+    if (grokClient.isEnabled(options.grokApiKey)) {
       try {
-        grokSpam = await gradeSpam(text, { hasFollowerContext: options.lowFollower === false });
+        grokSpam = await gradeSpam(text, { hasFollowerContext: options.lowFollower === false, apiKey: options.grokApiKey });
       } catch { /* fall through */ }
     }
 

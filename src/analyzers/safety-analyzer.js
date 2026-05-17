@@ -89,10 +89,11 @@ function matchesToRisk(count) {
   return 'high';
 }
 
-export default async function safetyAnalyzer(tweetText) {
-  if (grokClient.isEnabled()) {
+export default async function safetyAnalyzer(tweetText, options = {}) {
+  const { grokApiKey } = options;
+  if (grokClient.isEnabled(grokApiKey)) {
     try {
-      return await gradeSafety(tweetText);
+      return await gradeSafety(tweetText, { apiKey: grokApiKey });
     } catch { /* fall through to heuristic */ }
   }
 

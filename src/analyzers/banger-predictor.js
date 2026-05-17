@@ -136,9 +136,10 @@ export default async function bangerPredictor(tweetText, options = {}) {
     return { score: 0, threshold: 0.4, isBanger: false, factors: { novelty: 0, specificity: 0, hookStrength: 0, shareability: 0, clicheDensity: 0 }, source: 'heuristic' };
   }
 
-  if (grokClient.isEnabled()) {
+  const { grokApiKey } = options;
+  if (grokClient.isEnabled(grokApiKey)) {
     try {
-      const grokResult = await gradeBanger(tweetText);
+      const grokResult = await gradeBanger(tweetText, { apiKey: grokApiKey });
       return { ...grokResult, factors: null };
     } catch { /* fall through to heuristic */ }
   }

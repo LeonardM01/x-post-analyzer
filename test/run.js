@@ -692,5 +692,76 @@ function mockFetch(responder) {
 
 console.log('');
 
+// --- mdToHtml Tests ---
+console.log('mdToHtml renderer:');
+
+{
+  const { mdToHtml } = await import('../web/md-to-html.js');
+
+  const xss = mdToHtml('<script>alert(1)</script>');
+  assert(!xss.includes('<script>'), 'mdToHtml: <script> tags are escaped');
+  assert(xss.includes('&lt;script&gt;'), 'mdToHtml: script tag becomes &lt;script&gt;');
+
+  const headings = mdToHtml('# H1\n## H2\n### H3');
+  assert(headings.includes('<h1>H1</h1>'), 'mdToHtml: # renders as h1');
+  assert(headings.includes('<h2>H2</h2>'), 'mdToHtml: ## renders as h2');
+  assert(headings.includes('<h3>H3</h3>'), 'mdToHtml: ### renders as h3');
+
+  const lists = mdToHtml('- apple\n- banana\n\n1. one\n2. two');
+  assert(lists.includes('<ul>') && lists.includes('<li>apple</li>'), 'mdToHtml: bullet list renders ul/li');
+  assert(lists.includes('<ol>') && lists.includes('<li>one</li>'), 'mdToHtml: numbered list renders ol/li');
+
+  const table = mdToHtml('| A | B |\n|---|---|\n| 1 | 2 |');
+  assert(table.includes('<table>') && table.includes('<th>A</th>'), 'mdToHtml: table renders with th headers');
+  assert(table.includes('<td>1</td>'), 'mdToHtml: table body cell renders as td');
+
+  const link = mdToHtml('[Click](https://example.com)');
+  assert(link.includes('<a href="https://example.com">Click</a>'), 'mdToHtml: link renders as anchor');
+
+  const code = mdToHtml('```\nconsole.log(1)\n```');
+  assert(code.includes('<pre><code>') && code.includes('console.log(1)'), 'mdToHtml: fenced code block renders pre/code');
+
+  const checkbox = mdToHtml('- [ ] unchecked\n- [x] checked');
+  assert(checkbox.includes('type="checkbox" disabled>'), 'mdToHtml: checkbox list item renders disabled checkbox');
+  assert(checkbox.includes('checked>'), 'mdToHtml: checked checkbox renders with checked attr');
+}
+
+// --- callGrok apiKey argument tests ---
+console.log('callGrok apiKey argument:');
+
+{
+  const { callGrok, MODELS } = await import('../src/grok/client.js');
+
+  let capturedHeader = null;
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url, opts) => {
+    capturedHeader = opts.headers.Authorization;
+    return {
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: JSON.stringify({ score: 0.5, reasoning: 'ok' }) } }] }),
+    };
+  };
+
+  const savedEnvKey = process.env.XAI_API_KEY;
+  process.env.XAI_API_KEY = 'env-key';
+
+  try {
+    await callGrok({
+      model: MODELS.mini,
+      system: 'sys',
+      user: 'user',
+      schema: { type: 'object', required: ['score', 'reasoning'], properties: { score: { type: 'number' }, reasoning: { type: 'string' } }, additionalProperties: false },
+      apiKey: 'explicit-key',
+    });
+    assert(capturedHeader === 'Bearer explicit-key', 'callGrok: explicit apiKey takes priority over process.env');
+  } finally {
+    globalThis.fetch = original;
+    if (savedEnvKey !== undefined) process.env.XAI_API_KEY = savedEnvKey;
+    else delete process.env.XAI_API_KEY;
+  }
+}
+
+console.log('');
+
 console.log(`=== Results: ${passed} passed, ${failed} failed ===`);
 process.exit(failed > 0 ? 1 : 0);

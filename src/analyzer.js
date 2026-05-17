@@ -8,8 +8,9 @@ import bangerPredictor from './analyzers/banger-predictor.js';
 import safetyAnalyzer from './analyzers/safety-analyzer.js';
 import { LEGACY_2023_WEIGHTS } from './algorithm-weights.js';
 
-export async function analyzeTweet(tweet) {
+export async function analyzeTweet(tweet, options = {}) {
   const { text, media = {}, postDate = null, lowFollower } = tweet;
+  const { grokApiKey } = options;
 
   const textAnalysis = analyzeText(text);
   const mediaAnalysis = analyzeMedia({ ...media, tweetText: text });
@@ -18,9 +19,9 @@ export async function analyzeTweet(tweet) {
   const engagementPrediction = predictEngagement(textAnalysis, mediaAnalysis);
 
   const [replyStrategy, bangerResult, safetyResult] = await Promise.all([
-    analyzeReplyStrategy(text, { lowFollower }),
-    bangerPredictor(text),
-    safetyAnalyzer(text),
+    analyzeReplyStrategy(text, { lowFollower, grokApiKey }),
+    bangerPredictor(text, { grokApiKey }),
+    safetyAnalyzer(text, { grokApiKey }),
   ]);
 
   const overallScore = calculateOverallScore({
