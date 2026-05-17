@@ -14,7 +14,7 @@ function applyInline(text) {
     .replace(/`([^`]+)`/g, '<code>$1</code>')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/_(.+?)_/g, '<em>$1</em>')
+    .replace(/(^|[^a-zA-Z0-9])_([^_\n]+)_(?=[^a-zA-Z0-9]|$)/g, '$1<em>$2</em>')
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
 }
 

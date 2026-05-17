@@ -724,6 +724,13 @@ console.log('mdToHtml renderer:');
   const checkbox = mdToHtml('- [ ] unchecked\n- [x] checked');
   assert(checkbox.includes('type="checkbox" disabled>'), 'mdToHtml: checkbox list item renders disabled checkbox');
   assert(checkbox.includes('checked>'), 'mdToHtml: checked checkbox renders with checked attr');
+
+  assert(mdToHtml('share_via_dm').includes('share_via_dm'), 'mdToHtml: intraword underscore not parsed as italic (share_via_dm)');
+  assert(mdToHtml('follow_author_score').includes('follow_author_score'), 'mdToHtml: intraword underscore not parsed as italic (follow_author_score)');
+  assert(mdToHtml('use _italic_ here').includes('<em>italic</em>'), 'mdToHtml: whitespace-flanked underscore still renders as italic');
+  const mixed = mdToHtml('mixed reply_score and _italic_ together');
+  assert(mixed.includes('reply_score') && mixed.includes('<em>italic</em>'), 'mdToHtml: intraword underscore literal AND flanked underscore italic coexist');
+  assert(mdToHtml('**bold** and *italic*').includes('<strong>bold</strong>') && mdToHtml('**bold** and *italic*').includes('<em>italic</em>'), 'mdToHtml: asterisk bold and italic still work');
 }
 
 // --- callGrok apiKey argument tests ---
