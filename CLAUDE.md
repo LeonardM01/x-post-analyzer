@@ -15,6 +15,7 @@ node src/cli.js [options] "tweet text here"
 - `--compare "tweet1" "tweet2"` - compare multiple versions
 - `-o report.md` - save report to file
 - `-f tweets.txt` - read tweets from file
+- `--low-follower` - flag account as low-follower (SpamEasi classifier risk)
 
 ### What to Check (Priority Order)
 

@@ -26,25 +26,31 @@ Twitter [open-sourced their algorithm](https://github.com/twitter/the-algorithm)
 
 ---
 
-## The Most Important Thing You'll Learn
+## What the Analyzer Scores
 
-The algorithm scores every tweet using a weighted formula. Here's what each engagement is worth:
+The algorithm scores every tweet across discrete engagement heads. Action names follow [`xai-org/x-algorithm`](https://github.com/xai-org/x-algorithm) (2026). Numeric weights are no longer published upstream; 2023 reference values are retained as legacy estimates.
 
-```
-  Engagement Type              Weight    vs. a Like
-  ─────────────────────────    ──────    ──────────
-  You reply to a commenter      75.0       150x
-  Someone replies                13.5        27x
-  Profile click                  12.0        24x
-  Detail expand / link click     11.0        22x
-  Retweet                         1.0         2x
-  Like                            0.5         1x   ← baseline
-  ─────────────────────────    ──────    ──────────
-  "Show less often" click       -74.0      -148x
-  Report                       -369.0      -738x
-```
+| Signal | Category | 2023 legacy weight |
+|--------|----------|--------------------|
+| reply | engagement | 13.5* |
+| profile_click | engagement | 12.0* |
+| click (detail expand) | engagement | 11.0* |
+| repost | engagement | 1.0* |
+| favorite | engagement | 0.5* |
+| photo_expand | engagement | unpublished |
+| quote / quoted_click | engagement | unpublished |
+| follow_author | engagement | unpublished |
+| share_via_dm / share_via_copy_link | engagement | unpublished |
+| dwell_time / scroll_depth | continuous | unpublished |
+| vqv (video quality view) | media | 0.005* |
+| not_interested | negative | -74.0* |
+| block_author | negative | -74.0* |
+| mute_author | negative | -74.0* |
+| report | negative | -369.0* |
 
-**One reply you engage with = 150 likes.** That's not a metaphor. That's the actual math from `the-algorithm-ml`.
+*2023 estimate from `the-algorithm-ml`. Treat as directional, not current.
+
+The `replied_and_engaged_by_author` head (75.0 in 2023) no longer exists as a distinct action upstream. Replying to your commenters still drives reply, follow_author, and profile_click heads simultaneously — it remains the highest-leverage action you can take.
 
 ---
 
@@ -79,7 +85,7 @@ ever deleted?"
     [MEDIUM] No external links in main tweet - good, but no media reduces reach by ~30%.
 
   Top Suggestions:
-    1. CRITICAL: Reply to EVERY comment. Author-engaged replies = 75.0 weight (150x a like).
+    1. CRITICAL: Reply to EVERY comment. Drives reply + follow_author + profile_click heads simultaneously.
     2. Add line breaks for readability.
     3. Use high-contrast, eye-catching images that stop the scroll.
 
@@ -90,7 +96,7 @@ ever deleted?"
 
 ## How It Works
 
-The tool runs **6 analyzers** on your tweet, each targeting a different part of the algorithm:
+The tool runs **8 analyzers** on your tweet, each targeting a different part of the algorithm:
 
 ```
  ┌─────────────────────────────────────────────────────────────────┐
@@ -101,8 +107,8 @@ The tool runs **6 analyzers** on your tweet, each targeting a different part of 
        │                    │                    │
        ▼                    ▼                    ▼
 ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-│    Text      │  │   Reply      │  │   AI Slop    │
-│  Analyzer    │  │  Strategy    │  │  Detector    │
+│    Text      │  │   Reply      │  │ Neg-Feedback │
+│  Analyzer    │  │  Strategy    │  │ Risk (Grox)  │
 │              │  │  Analyzer    │  │              │
 │ • Length     │  │              │  │ • Slop words │
 │ • Hashtags   │  │ • 20+ hooks  │  │ • AI phrases │
@@ -123,18 +129,30 @@ The tool runs **6 analyzers** on your tweet, each targeting a different part of 
 │              │  │   formula    │  │              │
 └──────┬───────┘  └──────┬───────┘  └──────┬───────┘
        │                 │                 │
-       └─────────────────┼─────────────────┘
-                         │
-                         ▼
-               ┌───────────────────┐
-               │  Combined Score   │
-               │  0-100 (A-F)     │
-               │                   │
-               │  + Issues list    │
-               │  + Strengths      │
-               │  + Action steps   │
-               │  + Full .md report│
-               └───────────────────┘
+       ▼                 ▼                 ▼
+┌──────────────┐  ┌──────────────────────────────────┐
+│   Banger     │  │          Grox Safety Risk        │
+│  Likelihood  │  │                                  │
+│              │  │  7 PTOS categories:              │
+│ • Novelty    │  │  violent_media, adult_content,   │
+│ • Specificity│  │  spam, illegal_regulated,        │
+│ • Hook       │  │  hate_abuse, violent_speech,     │
+│ • Shareability│ │  self_harm                       │
+│ score >= 0.4 │  │                                  │
+└──────┬───────┘  └──────────────────┬───────────────┘
+       │                             │
+       └──────────────┬──────────────┘
+                      │
+                      ▼
+            ┌───────────────────┐
+            │  Combined Score   │
+            │  0-100 (A-F)     │
+            │                   │
+            │  + Issues list    │
+            │  + Strengths      │
+            │  + Action steps   │
+            │  + Full .md report│
+            └───────────────────┘
 ```
 
 ### 1. Text Quality Analyzer
@@ -143,7 +161,7 @@ Checks the signals the algorithm actually extracts (from `TweetTextFeaturesExtra
 
 | Signal | Optimal | Why |
 |--------|---------|-----|
-| Character length | 100–250 | Short tweets get ignored, long ones get read |
+| Character length | 75–200 (3–8s dwell window) | Short tweets get ignored, long ones lose dwell |
 | Hashtags | 0–2 | 3+ triggers spam detection |
 | @mentions | 0–1 | 3+ triggers spam detection |
 | External URLs | 0 | Algorithm keeps users on-platform — put links in replies |
@@ -154,7 +172,7 @@ Checks the signals the algorithm actually extracts (from `TweetTextFeaturesExtra
 
 ### 2. Reply Strategy Analyzer (Highest Impact)
 
-This is the most important analyzer because **replies are worth 27x a like** and **author-engaged replies are worth 150x a like**.
+This is the most important analyzer because replies simultaneously drive multiple engagement heads (reply, follow_author, profile_click). Replying to every commenter remains the highest-leverage action you can take.
 
 It detects 20+ conversation hooks:
 - Questions (`What do you think?`, `Which one?`, `How do you...`)
@@ -167,9 +185,9 @@ And 9+ debate triggers that provoke discussion:
 - Authority framing (`Most people don't...`, `Here's the thing...`)
 - Directive statements (`Stop doing X`, `Nobody talks about X`)
 
-### 3. AI Slop Detector
+### 3. Negative-Feedback Risk (Grox Slop Detector)
 
-The algorithm has dedicated slop signals (`SlopAuthorFeature`, `SlopAuthorScoreFeature`, `GrokSlopScoreFeature`, `SlopFilter`) that identify and suppress AI-generated low-quality content. Users also instinctively disengage from robotic text, triggering negative feedback weights (-74 to -369).
+The algorithm has dedicated slop signals (`SlopAuthorFeature`, `SlopAuthorScoreFeature`, `GrokSlopScoreFeature`, `SlopFilter`) that identify and suppress AI-generated low-quality content. Users also instinctively disengage from robotic text, triggering the not_interested, block_author, mute_author, and report negative heads.
 
 Detection is based on the [Antislop paper](https://arxiv.org/abs/2510.15061) (ICLR 2026) and [EQ-Bench Slop Score](https://eqbench.com/slop-score.html) methodology:
 
@@ -196,7 +214,33 @@ Detection is based on the [Antislop paper](https://arxiv.org/abs/2510.15061) (IC
 
 **Why it matters:** The X algorithm tracks `SlopAuthorScore` at the account level. Repeatedly posting AI-sounding content can flag your entire account, reducing reach on ALL your tweets — not just the flagged ones.
 
-### 4. Media Impact Analyzer
+### 4. Banger Likelihood
+
+Scores positive content quality against a 0.4 threshold. A score below threshold is flagged as low viral potential. Factors:
+
+| Factor | Weight | What it checks |
+|--------|--------|----------------|
+| Hook strength | 25% | First 12 chars: question, number, contrarian opener |
+| Novelty | 20% | Bigram uniqueness + token entropy |
+| Specificity | 20% | Named entities, numbers, timeframe anchors |
+| Shareability | 20% | Quote-worthy line (30–120 chars, ends with punctuation) |
+| Cliche density | 15% | Penalizes "game changer", "let that sink in", "bookmark this", etc. |
+
+### 5. Grox Safety Risk
+
+Checks tweet text against 7 Grox PTOS categories. High-risk matches trigger suppression before the Heavy Ranker even scores the tweet.
+
+| Category | Risk if matched |
+|----------|----------------|
+| violent_media | Immediate suppression |
+| adult_content | Age-gating / suppression |
+| spam | SpamEasi classifier escalation |
+| illegal_regulated | Removal |
+| hate_abuse | Removal |
+| violent_speech | Removal |
+| self_harm | Safe messaging intervention |
+
+### 6. Media Impact Analyzer
 
 The algorithm treats media types differently:
 
@@ -209,7 +253,7 @@ The algorithm treats media types differently:
 | GIF | ~1.5x | Visual appeal without video commitment |
 | None | 0.7x | Text-only gets ~30% less distribution |
 
-### 5. Engagement Predictor
+### 7. Engagement Predictor
 
 Uses the actual Heavy Ranker formula from `the-algorithm-ml`:
 
@@ -219,7 +263,7 @@ score = Σ (weight_i × P(engagement_i))
 
 Predicts probability for each of the 15 engagement types the model scores, then calculates weighted contribution to show you exactly where your tweet's score comes from.
 
-### 6. Timing Analyzer
+### 8. Timing Analyzer
 
 The algorithm weights recency heavily. The first 30–60 minutes of engagement determine reach.
 
@@ -251,6 +295,7 @@ x-post-analyzer [options] "Your tweet text"
 | `--poll` | Tweet includes a poll |
 | `--compare` | Compare multiple tweets and rank them |
 | `--date DATE` | ISO date for posting time analysis |
+| `--low-follower` | Flag account as low-follower (surfaces `SpamEasiLowFollowerClassifier` risk for reply-bait phrasing) |
 
 ### Examples
 
@@ -290,7 +335,9 @@ Every analysis generates a detailed markdown file with these sections:
 | **Tweet Analyzed** | Your tweet text for reference |
 | **Score Breakdown** | Per-category scores (text, media, reply, engagement) |
 | **Algorithm Weight Reference** | The actual weights from Twitter's code |
-| **AI Slop Detection** | Slop score, flagged words/phrases, structural tells |
+| **Negative-Feedback Risk** | Slop score, flagged words/phrases, structural tells |
+| **Banger Likelihood** | Novelty, hook, specificity, shareability, cliche density scores |
+| **Grox Safety Risk** | Per-category risk level across 7 PTOS heads |
 | **Issues Found** | What's hurting your reach, sorted by severity |
 | **Strengths** | What you're doing right |
 | **Action Steps to Improve** | Exactly what to change, ordered by impact |
@@ -376,10 +423,11 @@ console.log(slop.slop_phrases_found); // [{ name: '...', severity: '...' }, ...]
 
 ## The Algorithm
 
-Everything in this tool comes from two repos Twitter open-sourced:
+Everything in this tool comes from the algorithm repos:
 
-- **[twitter/the-algorithm](https://github.com/twitter/the-algorithm)** — The recommendation pipeline (Scala/Java)
-- **[twitter/the-algorithm-ml](https://github.com/twitter/the-algorithm-ml)** — The Heavy Ranker ML model (Python)
+- **[xai-org/x-algorithm](https://github.com/xai-org/x-algorithm)** — Current upstream (2026). Action names and signal categories are sourced from here. Numeric weights are not published.
+- **[twitter/the-algorithm](https://github.com/twitter/the-algorithm)** — Original open-source release (2023). Recommendation pipeline (Scala/Java).
+- **[twitter/the-algorithm-ml](https://github.com/twitter/the-algorithm-ml)** — Original Heavy Ranker ML model (Python). Source of 2023 legacy weights.
 
 ### How the "For You" Feed Works
 
@@ -496,7 +544,9 @@ x-post-analyzer/
 │   │   ├── engagement-predictor.js     # Weighted engagement scoring
 │   │   ├── media-analyzer.js           # Media type impact
 │   │   ├── timing-analyzer.js          # Posting time optimization
-│   │   └── slop-detector.js            # AI slop detection (EQ-Bench methodology)
+│   │   ├── slop-detector.js            # Negative-feedback risk (Grox slop signals)
+│   │   ├── banger-predictor.js         # Positive content quality (xalgo 2026, threshold ≥ 0.4)
+│   │   └── safety-analyzer.js          # Grox PTOS safety categories (7 heads)
 │   └── report/
 │       └── markdown-report.js          # Markdown report generator
 ├── test/
@@ -515,9 +565,9 @@ x-post-analyzer/
 
 **Do this:**
 - Ask a question at the end of every tweet
-- Reply to every single comment (150x a like!)
+- Reply to every single comment (drives reply + follow_author + profile_click heads simultaneously)
 - Use an image or video (2–2.5x boost)
-- Keep tweets 100–250 characters
+- Keep tweets 75–200 characters (3–8s dwell window)
 - Use 0–2 hashtags max
 - Post between 8–11 AM ET on weekdays
 - Share opinions and hot takes to drive debate
@@ -532,7 +582,7 @@ x-post-analyzer/
 - Use 3+ @mentions (spam signal)
 - Write in ALL CAPS (spam signal)
 - Post tweet-length URLs with no commentary
-- Ignore your replies (you're leaving 150x engagement on the table)
+- Ignore your replies (you're leaving reply + follow_author + profile_click signal on the table)
 - Post late at night (11 PM – 5 AM ET)
 - Repeat characters excessively (!!!!! or soooooo)
 
@@ -548,7 +598,8 @@ MIT
 
 ## Sources
 
-- [twitter/the-algorithm](https://github.com/twitter/the-algorithm) — Core recommendation algorithm (Scala/Java)
-- [twitter/the-algorithm-ml](https://github.com/twitter/the-algorithm-ml) — Heavy Ranker ML model and weights
+- [xai-org/x-algorithm](https://github.com/xai-org/x-algorithm) — Current upstream algorithm (2026). Action names, signal categories, PTOS safety heads.
+- [twitter/the-algorithm](https://github.com/twitter/the-algorithm) — Original open-source release (2023). Recommendation pipeline (Scala/Java).
+- [twitter/the-algorithm-ml](https://github.com/twitter/the-algorithm-ml) — Heavy Ranker ML model and 2023 legacy weights (Python).
 - [sam-paech/antislop-sampler](https://github.com/sam-paech/antislop-sampler) — Antislop framework (ICLR 2026)
 - [EQ-Bench Slop Score](https://eqbench.com/slop-score.html) — Slop detection methodology

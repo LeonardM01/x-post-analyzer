@@ -1,0 +1,1 @@
+- [xalgo 2026 realignment](project_xalgo_2026_realignment.md) — context for the May 2026 refactor; invariants around legacy weights and removed `replied_and_engaged_by_author`

@@ -307,6 +307,78 @@ console.log('Safety Analyzer:');
   assert(result[0].deluxeReasoningApplied !== undefined, 'Each result has deluxeReasoningApplied');
 }
 
+// --- index.js smoke test ---
+console.log('index.js exports:');
+
+{
+  const mod = await import('../src/index.js');
+  assert(typeof mod.analyzeTweet === 'function', 'index exports analyzeTweet');
+  assert(typeof mod.generateReport === 'function', 'index exports generateReport');
+  assert(typeof mod.CURRENT_ACTIONS === 'object', 'index exports CURRENT_ACTIONS');
+  assert(typeof mod.CONTINUOUS_ACTIONS !== 'undefined', 'index exports CONTINUOUS_ACTIONS');
+  assert(typeof mod.LEGACY_2023_WEIGHTS === 'object', 'index exports LEGACY_2023_WEIGHTS');
+  assert(typeof mod.GROX_SAFETY_CATEGORIES !== 'undefined', 'index exports GROX_SAFETY_CATEGORIES');
+  assert(typeof mod.OPTIMAL_TWEET === 'object', 'index exports OPTIMAL_TWEET');
+  assert(typeof mod.SPAM_SIGNALS === 'object', 'index exports SPAM_SIGNALS');
+  assert(typeof mod.NEGATIVE_SIGNALS === 'object', 'index exports NEGATIVE_SIGNALS');
+  assert(typeof mod.bangerPredictor === 'function', 'index exports bangerPredictor');
+  assert(typeof mod.safetyAnalyzer === 'function', 'index exports safetyAnalyzer');
+}
+
 console.log('');
+
+// --- Report: no leaked signals ---
+console.log('Report: no leaked signals:');
+
+{
+  const analysis = analyzeTweet({ text: 'Hot take: the best code is code you never write. What do you think? Agree or disagree?' });
+  const report = generateReport(analysis);
+  assert(!report.includes('replied_and_engaged_by_author'), 'Report does not contain replied_and_engaged_by_author');
+  assert(!report.includes('150x'), 'Report does not contain 150x');
+  const legacyTableLine = '### Legacy (2023)';
+  assert(!report.includes(legacyTableLine), 'Report does not render legacy weights table');
+}
+
+console.log('');
+
+// --- Low-follower default behavior ---
+console.log('Low-follower default:');
+
+{
+  const result = analyzeReplyStrategy('Drop your best advice below. Wrong answers only!');
+  const hasWarning = result.suggestions.some((s) => s.includes('SpamEasi'));
+  assert(hasWarning, 'No flags (undefined) → SpamEasi warning fires by default');
+}
+
+{
+  const result = analyzeReplyStrategy('Drop your best advice below. Wrong answers only!', { lowFollower: true });
+  const hasWarning = result.suggestions.some((s) => s.includes('SpamEasi'));
+  assert(hasWarning, '--low-follower → SpamEasi warning fires');
+}
+
+{
+  const result = analyzeReplyStrategy('Drop your best advice below. Wrong answers only!', { lowFollower: false });
+  const hasWarning = result.suggestions.some((s) => s.includes('SpamEasi'));
+  assert(!hasWarning, '--has-follower-context (false) → SpamEasi warning suppressed');
+}
+
+console.log('');
+
+// --- Banger empty input ---
+console.log('Banger empty input:');
+
+{
+  const result = bangerPredictor('');
+  assert(result.score === 0, 'bangerPredictor("") returns score 0');
+  assert(result.isBanger === false, 'bangerPredictor("") returns isBanger false');
+}
+
+{
+  const result = bangerPredictor('   ');
+  assert(result.score === 0, 'bangerPredictor("   ") returns score 0');
+}
+
+console.log('');
+
 console.log(`=== Results: ${passed} passed, ${failed} failed ===`);
 process.exit(failed > 0 ? 1 : 0);

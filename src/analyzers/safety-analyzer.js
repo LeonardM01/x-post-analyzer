@@ -43,7 +43,7 @@ const CATEGORY_PATTERNS = {
     /\bchild (labor|exploitation)\b/i,
   ],
   hate_abuse: [
-    /\b(slur words — pattern kept abstract)\b/i,
+    // Slur patterns intentionally omitted — pending a curated list to avoid false positives
     /\ball (jews|muslims|blacks|whites|gays) (are|should)\b/i,
     /\b(race|religion|gender) is inferior\b/i,
     /\bdie (you|all you)\b/i,

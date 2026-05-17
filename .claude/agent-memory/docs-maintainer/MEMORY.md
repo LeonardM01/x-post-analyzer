@@ -1,0 +1,1 @@
+- [xalgo-2026 alignment](project_xalgo2026.md) — Key invariants after 2026 upstream realignment: 8 analyzers, 4 neg heads, weights unpublished, 75-200 chars

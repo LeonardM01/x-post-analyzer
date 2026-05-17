@@ -129,6 +129,10 @@ function computeClicheDensity(text) {
 }
 
 export default function bangerPredictor(tweetText, options = {}) {
+  if (!tweetText || !tweetText.trim()) {
+    return { score: 0, threshold: 0.4, isBanger: false, factors: { novelty: 0, specificity: 0, hookStrength: 0, shareability: 0, clicheDensity: 0 } };
+  }
+
   const tokens = tokenize(tweetText || '');
 
   const novelty = computeNovelty(tokens);

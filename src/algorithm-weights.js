@@ -85,7 +85,7 @@ export const TEXT_FEATURES_EXTRACTED = [
 
 export const OPTIMAL_TWEET = {
   text_length: {
-    min: 71,
+    min: 75,
     ideal_min: 75,
     ideal_max: 200,
     max: 280,

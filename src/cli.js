@@ -13,7 +13,7 @@ function parseArgs(args) {
     postDate: null,
     help: false,
     file: null,
-    lowFollower: false,
+    lowFollower: undefined,
   };
 
   let i = 0;
@@ -54,6 +54,9 @@ function parseArgs(args) {
       case '--low-follower':
         options.lowFollower = true;
         break;
+      case '--has-follower-context':
+        options.lowFollower = false;
+        break;
       default:
         if (!arg.startsWith('-')) {
           options.tweets.push(arg);
@@ -83,7 +86,8 @@ OPTIONS:
   --poll              Tweet includes a poll
   --compare           Compare multiple tweets and rank them
   --date DATE         ISO date string for posting time analysis
-  --low-follower      Flag account as low-follower (enables SpamEasi classifier warning)
+  --low-follower          Flag account as low-follower (enables SpamEasi classifier warning, default behavior)
+  --has-follower-context  Suppress SpamEasi warning (account has established follower base)
 
 EXAMPLES:
   node src/cli.js "Just shipped a new feature! What do you think?"
@@ -180,10 +184,12 @@ function main() {
     console.log('');
   }
 
-  // Save report
-  const outputFile = options.output || 'analysis-report.md';
-  writeFileSync(outputFile, report);
-  console.log(`  Full report saved to: ${outputFile}\n`);
+  if (options.output) {
+    writeFileSync(options.output, report);
+    console.log(`  Full report saved to: ${options.output}\n`);
+  } else {
+    console.log(report);
+  }
 }
 
 main();

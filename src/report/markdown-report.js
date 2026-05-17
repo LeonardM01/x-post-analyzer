@@ -78,22 +78,6 @@ export function generateReport(analysis) {
   lines.push('| mute_author | negative | unpublished (legacy: -74.0*) |');
   lines.push('| report | negative | unpublished (legacy: -369.0*) |');
   lines.push('');
-  lines.push('### Legacy (2023)');
-  lines.push('');
-  lines.push('From the-algorithm-ml README, April 2023. Historical reference only.');
-  lines.push('');
-  lines.push('| Signal | Weight |');
-  lines.push('|--------|--------|');
-  lines.push(`| replied | ${analysis.algorithm_weights.replied} |`);
-  lines.push(`| replied_and_engaged_by_author | ${analysis.algorithm_weights.replied_and_engaged_by_author} |`);
-  lines.push(`| good_profile_click | ${analysis.algorithm_weights.good_profile_click} |`);
-  lines.push(`| good_click | ${analysis.algorithm_weights.good_click} |`);
-  lines.push(`| retweeted | ${analysis.algorithm_weights.retweeted} |`);
-  lines.push(`| favorited | ${analysis.algorithm_weights.favorited} |`);
-  lines.push(`| video_playback_50 | ${analysis.algorithm_weights.video_playback_50} |`);
-  lines.push(`| negative_feedback_v2 | ${analysis.algorithm_weights.negative_feedback_v2} |`);
-  lines.push(`| report | ${analysis.algorithm_weights.report} |`);
-  lines.push('');
 
   // Issues (What's Bad)
   if (analysis.issues.length > 0) {
